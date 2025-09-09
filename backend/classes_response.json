@@ -1,0 +1,1 @@
+{"classes":[{"id":1,"name":"高一(1)班","description":"高一年级1班","teacherId":41,"teacherName":"张老师","teacherUsername":"teacher1","grade":"","semester":"spring","maxStudents":50,"currentStudents":21,"academicYear":"","status":"active","createdAt":"2025-09-08 22:42:07","updatedAt":"2025-09-08 22:42:07"}],"pagination":{"total":1,"page":1,"limit":10,"totalPages":1}}

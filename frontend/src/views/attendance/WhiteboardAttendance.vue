@@ -314,6 +314,19 @@ const submitSignature = async () => {
     const canvas = signatureCanvas.value
     const signatureData = canvas.toDataURL('image/png')
     
+    // 构建请求体
+    const requestBody = {
+      classId: classInfo.id,
+      method: 'signature',
+      signatureData: signatureData,
+      notes: '希沃白板手写签到'
+    }
+    
+    // 如果是学生角色，需要传递studentId（使用当前用户ID）
+    if (userStore.userInfo?.role?.name === 'student') {
+      requestBody.studentId = userStore.userInfo.id
+    }
+    
     // 提交签到
     const response = await fetch('/api/attendance/create', {
       method: 'POST',
@@ -321,12 +334,7 @@ const submitSignature = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('teacher-manager-token')}`
       },
-      body: JSON.stringify({
-        classId: classInfo.id,
-        method: 'signature',
-        signatureData: signatureData,
-        notes: '希沃白板手写签到'
-      })
+      body: JSON.stringify(requestBody)
     })
     
     const result = await response.json()
@@ -398,22 +406,30 @@ const getClassInfo = async () => {
     
     if (response.ok) {
       const data = await response.json()
+      console.log('获取到的班级数据:', data)
+      
       if (data && data.classes && data.classes.length > 0) {
         const classData = data.classes[0]
         classInfo.id = classData.id
         classInfo.name = classData.name
         classInfo.teacherId = classData.teacherId
         
+        console.log('设置班级信息:', classInfo)
+        
         // 获取班级学生
         await getClassStudents(classData.id)
+      } else {
+        console.warn('没有找到班级数据:', data)
+        ElMessage.warning('没有找到可用的班级')
       }
     } else {
-      console.error('获取班级信息失败')
-      ElMessage.error('获取班级信息失败')
+      const errorData = await response.json().catch(() => ({}))
+      console.error('获取班级信息失败:', response.status, errorData)
+      ElMessage.error(`获取班级信息失败: ${errorData.message || response.statusText}`)
     }
   } catch (error) {
     console.error('获取班级信息失败:', error)
-    ElMessage.error('获取班级信息失败')
+    ElMessage.error('获取班级信息失败，请检查网络连接')
   } finally {
     loading.value = false
   }
@@ -430,9 +446,13 @@ const getClassStudents = async (classId) => {
     
     if (response.ok) {
       const data = await response.json()
-      classStudents.value = data || []
+      console.log('获取到的班级学生数据:', data)
+      // 后端返回的数据结构是 {students: [...], total: ...}
+      classStudents.value = data.students || []
     } else {
-      console.error('获取班级学生失败')
+      const errorData = await response.json().catch(() => ({}))
+      console.error('获取班级学生失败:', response.status, errorData)
+      ElMessage.error(`获取班级学生失败: ${errorData.message || response.statusText}`)
       classStudents.value = []
     }
   } catch (error) {
@@ -457,7 +477,10 @@ const refreshAttendance = async () => {
     
     if (response.ok) {
       const data = await response.json()
-      attendanceRecords.value = data.map(item => ({
+      console.log('获取到的签到记录数据:', data)
+      // 后端返回的数据结构是 {attendances: [...], pagination: {...}}
+      const attendances = data.attendances || []
+      attendanceRecords.value = attendances.map(item => ({
         id: item.id,
         studentId: item.studentId,
         studentName: item.studentName || item.student?.name,
@@ -466,7 +489,9 @@ const refreshAttendance = async () => {
         status: 'present'
       }))
     } else {
-      console.error('获取签到列表失败')
+      const errorData = await response.json().catch(() => ({}))
+      console.error('获取签到列表失败:', response.status, errorData)
+      ElMessage.error(`获取签到记录失败: ${errorData.message || response.statusText}`)
       attendanceRecords.value = []
     }
   } catch (error) {

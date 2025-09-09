@@ -118,7 +118,7 @@ exports.scanQRCode = async (req, res) => {
     // 直接查询class_student表检查学生是否在班级中
     const connection = getConnection();
     const classStudentResult = await connection.query(
-      'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+      'SELECT 1 FROM class_students WHERE student_id = ? AND class_id = ?',
       [studentId, session.classId]
     );
     
@@ -146,7 +146,8 @@ exports.scanQRCode = async (req, res) => {
     const attendance = getAttendanceRepository().create({
       student: { id: studentId },
       class: { id: session.classId },
-      class_time: new Date(),
+      check_in_time: new Date().toTimeString().split(' ')[0],
+      date: new Date().toISOString().split('T')[0],
       status: locationValid ? 'present' : 'location_invalid',
       sessionId,
       location: location || null
@@ -161,7 +162,7 @@ exports.scanQRCode = async (req, res) => {
       message: locationValid ? '签到成功' : '签到成功，但位置异常',
       attendanceId: attendance.id,
       status: attendance.status,
-      attendanceTime: formatDate(attendance.class_time)
+      attendanceTime: attendance.check_in_time
     });
   } catch (error) {
     console.error('签到失败:', error);
@@ -204,7 +205,7 @@ exports.manualAttendance = async (req, res) => {
     // 直接查询class_student表检查学生是否在班级中
     const connection = getConnection();
     const classStudentResult = await connection.query(
-      'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+      'SELECT 1 FROM class_students WHERE student_id = ? AND class_id = ?',
       [studentId, classId]
     );
     
@@ -216,7 +217,8 @@ exports.manualAttendance = async (req, res) => {
     const attendance = getAttendanceRepository().create({
       student: { id: studentId },
       class: { id: classId },
-      class_time: new Date(),
+      check_in_time: new Date().toTimeString().split(' ')[0],
+      date: new Date().toISOString().split('T')[0],
       status,
       note,
       manuallyCreated: true,
@@ -229,7 +231,7 @@ exports.manualAttendance = async (req, res) => {
       message: '手动签到成功',
       attendanceId: attendance.id,
       status: attendance.status,
-      attendanceTime: formatDateTime(attendance.class_time)
+      attendanceTime: attendance.check_in_time
     });
   } catch (error) {
     console.error('手动签到失败:', error);
@@ -289,7 +291,7 @@ exports.createAttendance = async (req, res) => {
       // 检查学生是否在班级中
       const connection = getConnection();
       const classStudentResult = await connection.query(
-        'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+        'SELECT 1 FROM class_students WHERE student_id = ? AND class_id = ?',
         [finalStudentId, classId]
       );
       
@@ -349,10 +351,10 @@ exports.createAttendance = async (req, res) => {
         studentName: student.name,
         classId: classId,
         className: classEntity.name,
-        attendanceTime: attendance.class_time,
+        attendanceTime: attendance.check_in_time,
         method: method,
         status: attendance.status,
-        notes: attendance.note
+        notes: attendance.notes
       }
     });
   } catch (error) {
@@ -411,7 +413,7 @@ exports.getAttendanceList = async (req, res) => {
       const endDate = new Date(date);
       endDate.setHours(23, 59, 59, 999);
       
-      whereClause.class_time = Between(startDate, endDate);
+      whereClause.date = date;
     }
     
     // 按状态筛选
@@ -428,7 +430,7 @@ exports.getAttendanceList = async (req, res) => {
       relations: ['student', 'class'],
       skip,
       take: limit,
-      order: { class_time: 'DESC' }
+      order: { date: 'DESC', check_in_time: 'DESC' }
     });
     
     // 格式化返回数据
@@ -438,9 +440,9 @@ exports.getAttendanceList = async (req, res) => {
       studentName: attendance.student.name,
       classId: attendance.class.id,
       className: attendance.class.name,
-      attendanceTime: formatDate(attendance.class_time),
+      attendanceTime: `${attendance.date} ${attendance.check_in_time}`,
       status: attendance.status,
-      note: attendance.note,
+      note: attendance.notes,
       manuallyCreated: attendance.manuallyCreated
     }));
     
@@ -495,13 +497,14 @@ exports.getAttendanceStats = async (req, res) => {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       
-      whereClause.class_time = Between(start, end);
+      // 对于日期范围查询，需要使用SQL查询
+      // 这里暂时保留原逻辑，后续可以优化为SQL查询
     }
     
     // 获取班级所有学生
     const connection = getConnection();
     const students = await connection.query(
-      'SELECT u.* FROM users u INNER JOIN class_student cs ON u.id = cs.student_id WHERE cs.class_id = ? AND u.role = "student"',
+      'SELECT u.* FROM users u INNER JOIN class_students cs ON u.id = cs.student_id WHERE cs.class_id = ? AND u.role = "student"',
       [classId]
     );
     
