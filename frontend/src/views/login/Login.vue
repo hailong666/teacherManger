@@ -23,11 +23,14 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login } from '@/api/user'
+import { useUserStore } from '@/stores/user'
 
 // 路由实例
 const router = useRouter()
 const route = useRoute()
+
+// 用户store
+const userStore = useUserStore()
 
 // 表单引用
 const loginFormRef = ref(null)
@@ -55,14 +58,13 @@ const loginRules = {
 
 // 处理登录
 const handleLogin = () => {
-  loginFormRef.value.validate(valid => {
+  loginFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
       
-      // 调用实际的登录API
-      login(loginForm).then(response => {
-        // 保存token到本地存储
-        localStorage.setItem('teacher-manager-token', response.token)
+      try {
+        // 使用store进行登录
+        await userStore.login(loginForm)
         
         // 登录成功提示
         ElMessage.success('登录成功')
@@ -70,12 +72,12 @@ const handleLogin = () => {
         // 跳转到首页或者重定向页面
         const redirect = route.query.redirect || '/'
         router.push(redirect)
-      }).catch(error => {
+      } catch (error) {
         // 登录失败提示
         ElMessage.error(error.response?.data?.message || '登录失败，请检查用户名和密码')
-      }).finally(() => {
+      } finally {
         loading.value = false
-      })
+      }
     }
   })
 }

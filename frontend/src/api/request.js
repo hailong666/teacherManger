@@ -12,10 +12,16 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     // 从localStorage获取token
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('teacher-manager-token')
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
     }
+    
+    // 添加禁用缓存的头部信息，防止304状态码
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    config.headers['Pragma'] = 'no-cache'
+    config.headers['Expires'] = '0'
+    
     return config
   },
   error => {
@@ -40,7 +46,7 @@ service.interceptors.response.use(
         case 401:
           message = '未授权，请重新登录'
           // 清除token并跳转登录页
-          localStorage.removeItem('token')
+          localStorage.removeItem('teacher-manager-token')
           router.push(`/login?redirect=${router.currentRoute.value.fullPath}`)
           break
         case 403:

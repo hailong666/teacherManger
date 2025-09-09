@@ -56,7 +56,7 @@
                 </div>
                 <div class="student-info">
                   <h4>{{ student.name }}</h4>
-                  <p>学号: {{ student.studentId }}</p>
+                  <p>学号: {{ student.studentNumber }}</p>
                   <p>班级: {{ student.className }}</p>
                 </div>
               </div>
@@ -147,9 +147,10 @@ const total = ref(0)
 const loadClasses = async () => {
   try {
     const response = await getClasses()
-    classes.value = response.data
+    classes.value = response.classes || []
   } catch (error) {
     ElMessage.error('加载班级列表失败')
+    console.error('加载班级列表失败:', error)
   }
 }
 
@@ -163,10 +164,11 @@ const loadCallHistory = async () => {
       classId: filterClassId.value || undefined
     }
     const response = await getRandomCallHistory(params)
-    callHistory.value = response.data.calls || response.data
-    total.value = response.data.pagination?.total || response.data.length
+    callHistory.value = response.calls || []
+    total.value = response.pagination?.total || 0
   } catch (error) {
     ElMessage.error('加载点名历史失败')
+    console.error('加载点名历史失败:', error)
   } finally {
     loading.value = false
   }
@@ -176,9 +178,10 @@ const loadCallHistory = async () => {
 const loadStudents = async (classId) => {
   try {
     const response = await getStudentsByClass(classId)
-    availableStudents.value = response.data
+    availableStudents.value = response.students || []
   } catch (error) {
     ElMessage.error('加载学生列表失败')
+    console.error('加载学生列表失败:', error)
     availableStudents.value = []
   }
 }
@@ -251,12 +254,20 @@ const finishRandomCall = (candidateStudents) => {
   const selectedStudents = []
   const usedIndices = new Set()
   
+  // 获取当前选中班级的名称
+  const selectedClass = classes.value.find(cls => cls.id === selectedClassId.value)
+  const className = selectedClass ? selectedClass.name : '未知班级'
+  
   // 随机选择学生
   while (selectedStudents.length < actualCallCount) {
     const randomIndex = Math.floor(Math.random() * candidateStudents.length)
     if (!usedIndices.has(randomIndex)) {
       usedIndices.add(randomIndex)
-      selectedStudents.push(candidateStudents[randomIndex])
+      const student = candidateStudents[randomIndex]
+      selectedStudents.push({
+        ...student,
+        className: className
+      })
     }
   }
   
@@ -291,7 +302,8 @@ const saveCallRecord = async () => {
     // 清空结果
     calledStudents.value = []
   } catch (error) {
-    ElMessage.error('保存点名记录失败')
+    console.error('保存点名记录失败:', error)
+    ElMessage.error(`保存点名记录失败: ${error.response?.data?.message || error.message || '未知错误'}`)
   } finally {
     saving.value = false
   }

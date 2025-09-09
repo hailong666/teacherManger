@@ -156,9 +156,9 @@ const generateQRCode = async () => {
   generating.value = true
   try {
     const response = await getAttendanceQRCode(qrcodeForm.classId)
-    if (response && response.data) {
-      qrcodeUrl.value = response.data.qrcodeUrl || ''
-      sessionId.value = response.data.sessionId || ''
+    if (response && response.qrCode) {
+      qrcodeUrl.value = response.qrCode
+      sessionId.value = response.sessionId
       ElMessage.success('签到码生成成功')
     } else {
       ElMessage.error('生成签到码失败：服务器响应异常')
@@ -179,9 +179,9 @@ const getAttendanceRecords = async () => {
       limit: pagination.limit
     }
     const response = await getAttendanceList(params)
-    if (response && response.data) {
-      attendanceList.value = response.data.attendances || []
-      pagination.total = response.data.pagination?.total || 0
+    if (response && response.attendances) {
+      attendanceList.value = response.attendances || []
+      pagination.total = response.pagination?.total || 0
     } else {
       attendanceList.value = []
       pagination.total = 0

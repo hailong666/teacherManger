@@ -36,6 +36,12 @@ router.post('/:id/students',
   classController.addStudentsToClass
 );
 
+// 获取班级学生列表
+router.get('/:id/students', 
+  authMiddleware.verifyToken, 
+  classController.getClassStudents
+);
+
 // 从班级移除学生
 router.delete('/:id/students/:studentId', 
   authMiddleware.verifyToken, 

@@ -3,7 +3,7 @@ import request from '@/utils/request'
 // 随机选择学生
 export const randomSelectStudents = (data) => {
   return request({
-    url: '/api/random/select',
+    url: '/random/select',
     method: 'post',
     data
   })
@@ -12,7 +12,7 @@ export const randomSelectStudents = (data) => {
 // 随机分组
 export const randomGroups = (data) => {
   return request({
-    url: '/api/random/groups',
+    url: '/random/groups',
     method: 'post',
     data
   })
@@ -21,7 +21,7 @@ export const randomGroups = (data) => {
 // 获取班级列表
 export const getClassList = () => {
   return request({
-    url: '/api/classes',
+    url: '/classes',
     method: 'get'
   })
 }
@@ -29,7 +29,7 @@ export const getClassList = () => {
 // 获取班级列表（别名）
 export const getClasses = () => {
   return request({
-    url: '/api/classes',
+    url: '/classes',
     method: 'get'
   })
 }
@@ -37,7 +37,7 @@ export const getClasses = () => {
 // 获取班级学生列表
 export const getClassStudents = (classId) => {
   return request({
-    url: `/api/random/students/${classId}`,
+    url: `/random/students/${classId}`,
     method: 'get'
   })
 }
@@ -45,7 +45,7 @@ export const getClassStudents = (classId) => {
 // 获取班级学生列表（别名）
 export const getStudentsByClass = (classId) => {
   return request({
-    url: `/api/random/students/${classId}`,
+    url: `/random/students/${classId}`,
     method: 'get'
   })
 }
@@ -53,7 +53,7 @@ export const getStudentsByClass = (classId) => {
 // 获取随机点名历史
 export const getRandomCallHistory = (params) => {
   return request({
-    url: '/api/random/history',
+    url: '/random/history',
     method: 'get',
     params
   })
@@ -62,7 +62,7 @@ export const getRandomCallHistory = (params) => {
 // 创建随机点名记录
 export const createRandomCall = (data) => {
   return request({
-    url: '/api/random/call',
+    url: '/random/call',
     method: 'post',
     data
   })

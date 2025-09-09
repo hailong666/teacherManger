@@ -24,6 +24,12 @@ router.post('/manual',
   attendanceController.manualAttendance
 );
 
+// 创建签到记录（支持手写签名）
+router.post('/create', 
+  authMiddleware.verifyToken, 
+  attendanceController.createAttendance
+);
+
 // 获取签到记录列表
 router.get('/', 
   authMiddleware.verifyToken, 

@@ -1,0 +1,34 @@
+{
+  "name": "teacher-manager-ui-tests",
+  "version": "1.0.0",
+  "description": "教师管理系统UI自动化测试套件",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node frontend/tests/run-tests.js",
+    "test:debug": "node frontend/tests/run-tests.js --debug",
+    "test:parallel": "node frontend/tests/run-tests.js --parallel",
+    "test:login": "node frontend/tests/run-tests.js login",
+    "test:class": "node frontend/tests/run-tests.js class",
+    "test:functional": "node frontend/tests/run-tests.js functional",
+    "test:exception": "node frontend/tests/run-tests.js exception",
+    "test:all": "node frontend/tests/run-tests.js"
+  },
+  "keywords": [
+    "ui-testing",
+    "puppeteer",
+    "automation",
+    "teacher-management"
+  ],
+  "author": "Teacher Manager Team",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^13.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -6,12 +6,24 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     token: getToken(),
     userInfo: null,
-    roles: []
+    roles: [],
+    permissions: []
   }),
 
   getters: {
     isLoggedIn: (state) => !!state.token,
-    hasRole: (state) => (role) => state.roles.includes(role)
+    hasRole: (state) => (role) => {
+      if (state.userInfo?.role?.name) {
+        return state.userInfo.role.name === role
+      }
+      return state.roles.includes(role)
+    },
+    hasPermission: (state) => (permission) => {
+      return state.permissions.some(p => p.name === permission)
+    },
+    userRole: (state) => {
+      return state.userInfo?.role?.name || (state.roles.length > 0 ? state.roles[0] : null)
+    }
   },
 
   actions: {
@@ -19,15 +31,25 @@ export const useUserStore = defineStore('user', {
     async login(loginForm) {
       try {
         const response = await login(loginForm)
-        const { token, user } = response.data
+        console.log('Login response:', response)
+        
+        // 根据实际API响应结构调整
+        const token = response.token || response.data?.token
+        const user = response.user || response.data?.user || response.data
+        
+        if (!token) {
+          throw new Error('登录响应中缺少token')
+        }
         
         this.token = token
         this.userInfo = user
-        this.roles = [user.role]
+        this.roles = user?.role ? [user.role.name || user.role] : []
+        this.permissions = user?.role?.permissions || []
         
         setToken(token)
         return response
       } catch (error) {
+        console.error('Login error:', error)
         throw error
       }
     },
@@ -36,13 +58,22 @@ export const useUserStore = defineStore('user', {
     async getUserInfo() {
       try {
         const response = await getUserInfo()
-        const { user } = response.data
+        console.log('GetUserInfo response:', response)
+        
+        // 根据实际API响应结构调整
+        const user = response.user || response.data?.user || response.data || response
+        
+        if (!user) {
+          throw new Error('获取用户信息响应格式错误')
+        }
         
         this.userInfo = user
-        this.roles = [user.role]
+        this.roles = user?.role ? [user.role.name || user.role] : []
+        this.permissions = user?.role?.permissions || []
         
         return user
       } catch (error) {
+        console.error('GetUserInfo error:', error)
         throw error
       }
     },
@@ -52,6 +83,7 @@ export const useUserStore = defineStore('user', {
       this.token = null
       this.userInfo = null
       this.roles = []
+      this.permissions = []
       removeToken()
     },
 
@@ -60,6 +92,7 @@ export const useUserStore = defineStore('user', {
       this.token = null
       this.userInfo = null
       this.roles = []
+      this.permissions = []
     }
   }
 })

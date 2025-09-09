@@ -2,7 +2,7 @@ const { EntitySchema } = require('typeorm');
 
 module.exports = new EntitySchema({
   name: 'RandomCall',
-  tableName: 'random_call',
+  tableName: 'random_calls',
   columns: {
     id: {
       primary: true,
@@ -11,32 +11,51 @@ module.exports = new EntitySchema({
     },
     class_id: {
       type: 'int',
-      nullable: false
+      nullable: false,
+      comment: '班级ID'
     },
     teacher_id: {
       type: 'int',
-      nullable: false
+      nullable: false,
+      comment: '教师ID'
     },
     student_ids: {
       type: 'text',
       nullable: false,
-      comment: 'JSON格式存储被点名学生ID列表'
+      comment: '学生ID列表(JSON格式)'
     },
     student_names: {
       type: 'text',
       nullable: false,
-      comment: '被点名学生姓名，逗号分隔'
+      comment: '学生姓名列表'
     },
     call_type: {
       type: 'varchar',
       length: 50,
       default: 'random',
-      comment: '点名类型：random-随机点名'
+      comment: '点名类型'
     },
     call_count: {
       type: 'int',
-      default: 1,
+      nullable: false,
       comment: '点名人数'
+    },
+    session_id: {
+      type: 'varchar',
+      length: 50,
+      nullable: true,
+      comment: '随机点名会话ID'
+    },
+    subject: {
+      type: 'varchar',
+      length: 50,
+      nullable: true,
+      comment: '科目'
+    },
+    notes: {
+      type: 'text',
+      nullable: true,
+      comment: '备注信息'
     },
     created_at: {
       type: 'timestamp',
@@ -53,26 +72,32 @@ module.exports = new EntitySchema({
       target: 'Class',
       joinColumn: {
         name: 'class_id'
-      },
-      onDelete: 'CASCADE'
+      }
     },
     teacher: {
       type: 'many-to-one',
       target: 'User',
       joinColumn: {
         name: 'teacher_id'
-      },
-      onDelete: 'CASCADE'
+      }
     }
   },
   indices: [
     {
-      name: 'idx_class_teacher',
-      columns: ['class_id', 'teacher_id']
+      name: 'idx_class_id',
+      columns: ['class_id']
     },
     {
-      name: 'idx_created_at',
-      columns: ['created_at']
+      name: 'idx_teacher_id',
+      columns: ['teacher_id']
+    },
+    {
+      name: 'idx_session_id',
+      columns: ['session_id']
+    },
+    {
+      name: 'idx_call_type',
+      columns: ['call_type']
     }
   ]
 });

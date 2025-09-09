@@ -32,8 +32,8 @@ service.interceptors.response.use(
   response => {
     const res = response.data
     
-    // 如果返回的状态码为200，说明接口请求成功，可以正常拿到数据
-    if (response.status === 200) {
+    // 如果返回的状态码为2xx，说明接口请求成功，可以正常拿到数据
+    if (response.status >= 200 && response.status < 300) {
       return Promise.resolve(res)
     } else {
       return Promise.reject(res)

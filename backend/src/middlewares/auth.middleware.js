@@ -40,8 +40,19 @@ exports.verifyToken = async (req, res, next) => {
       });
     }
     
-    // 将用户信息添加到请求对象
-    req.user = user;
+    // 获取用户角色信息
+    let role = null;
+    if (user.role_id) {
+      const Role = require('../models/Role');
+      const roleRepository = getConnection().getRepository(Role);
+      role = await roleRepository.findOne({ where: { id: user.role_id } });
+    }
+    
+    // 将用户信息和角色添加到请求对象
+    req.user = {
+      ...user,
+      role: role ? role.name : 'student'
+    };
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {

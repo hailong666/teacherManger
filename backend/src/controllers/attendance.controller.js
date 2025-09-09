@@ -3,8 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Class = require('../models/Class');
-const { getConnection } = require('typeorm');
-const { formatDateTime, calculateDistance } = require('../utils/helpers');
+const { getConnection, Between } = require('typeorm');
+const { formatDate, calculateDistance } = require('../utils/helpers');
 
 // 获取Attendance仓库的辅助函数
 const getAttendanceRepository = () => {
@@ -108,12 +108,21 @@ exports.scanQRCode = async (req, res) => {
     
     // 验证学生是否属于该班级
     const student = await getUserRepository().findOne({
-      where: { id: studentId },
-      relations: ['classes']
+      where: { id: studentId, role: 'student' }
     });
     
-    const isStudentInClass = student.classes.some(cls => cls.id === session.classId);
-    if (!isStudentInClass) {
+    if (!student) {
+      return res.status(404).json({ message: '学生不存在' });
+    }
+    
+    // 直接查询class_student表检查学生是否在班级中
+    const connection = getConnection();
+    const classStudentResult = await connection.query(
+      'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+      [studentId, session.classId]
+    );
+    
+    if (classStudentResult.length === 0) {
       return res.status(403).json({ message: '您不是该班级的学生，无法签到' });
     }
     
@@ -152,7 +161,7 @@ exports.scanQRCode = async (req, res) => {
       message: locationValid ? '签到成功' : '签到成功，但位置异常',
       attendanceId: attendance.id,
       status: attendance.status,
-      attendanceTime: formatDateTime(attendance.class_time)
+      attendanceTime: formatDate(attendance.class_time)
     });
   } catch (error) {
     console.error('签到失败:', error);
@@ -185,17 +194,21 @@ exports.manualAttendance = async (req, res) => {
     
     // 验证学生是否存在
     const student = await getUserRepository().findOne({
-      where: { id: studentId, role: 'student' },
-      relations: ['classes']
+      where: { id: studentId, role: 'student' }
     });
     
     if (!student) {
       return res.status(404).json({ message: '学生不存在' });
     }
     
-    // 验证学生是否属于该班级
-    const isStudentInClass = student.classes.some(cls => cls.id === classId);
-    if (!isStudentInClass) {
+    // 直接查询class_student表检查学生是否在班级中
+    const connection = getConnection();
+    const classStudentResult = await connection.query(
+      'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+      [studentId, classId]
+    );
+    
+    if (classStudentResult.length === 0) {
       return res.status(400).json({ message: '该学生不属于此班级' });
     }
     
@@ -225,7 +238,131 @@ exports.manualAttendance = async (req, res) => {
 };
 
 /**
- * 获取签到记录列表
+ * 创建签到记录（支持手写签名）
+ */
+exports.createAttendance = async (req, res) => {
+  try {
+    const { classId, studentId, method = 'manual', signatureData, notes } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    // 验证班级是否存在
+    const classEntity = await getClassRepository().findOne({
+      where: { id: classId },
+      relations: ['teacher']
+    });
+    
+    if (!classEntity) {
+      return res.status(404).json({ message: '班级不存在' });
+    }
+    
+    let finalStudentId = studentId;
+    
+    // 如果是学生自己签到（手写签名），使用当前用户ID
+    if (userRole === 'student' && method === 'signature') {
+      finalStudentId = userId;
+      
+      // 验证学生是否在班级中
+      const isStudentInClass = classEntity.students.some(student => student.id === userId);
+      if (!isStudentInClass) {
+        return res.status(403).json({ message: '您不在此班级中，无法签到' });
+      }
+    } else if (userRole === 'teacher' || userRole === 'admin') {
+      // 教师手动签到，验证权限
+      if (userRole === 'teacher' && classEntity.teacher.id !== userId) {
+        return res.status(403).json({ message: '您不是该班级的教师，无权进行签到操作' });
+      }
+      
+      if (!finalStudentId) {
+        return res.status(400).json({ message: '必须指定学生ID' });
+      }
+      
+      // 验证学生是否存在且在班级中
+      const student = await getUserRepository().findOne({
+        where: { id: finalStudentId, role_id: 3 }
+      });
+      
+      if (!student) {
+        return res.status(404).json({ message: '学生不存在' });
+      }
+      
+      // 检查学生是否在班级中
+      const connection = getConnection();
+      const classStudentResult = await connection.query(
+        'SELECT 1 FROM class_student WHERE student_id = ? AND class_id = ?',
+        [finalStudentId, classId]
+      );
+      
+      if (classStudentResult.length === 0) {
+        return res.status(400).json({ message: '该学生不属于此班级' });
+      }
+    } else {
+      return res.status(403).json({ message: '权限不足' });
+    }
+    
+    // 检查今天是否已经签到
+    const today = new Date();
+    const todayDate = today.toISOString().split('T')[0]; // YYYY-MM-DD格式
+    
+    const existingAttendance = await getAttendanceRepository().findOne({
+      where: {
+        student_id: finalStudentId,
+        class_id: classId,
+        date: todayDate
+      }
+    });
+    
+    if (existingAttendance) {
+      return res.status(400).json({ message: '今天已经签到过了' });
+    }
+    
+    // 创建签到记录
+    const attendanceData = {
+      student_id: finalStudentId,
+      class_id: classId,
+      date: todayDate,
+      status: 'present',
+      check_in_time: new Date().toTimeString().split(' ')[0], // HH:MM:SS格式
+      notes: notes || (method === 'signature' ? '手写签到' : '手动签到'),
+      is_manual: method === 'manual',
+      recorded_by: userId
+    };
+    
+    // 如果有签名数据，保存签名
+    if (signatureData && method === 'signature') {
+      attendanceData.signatureData = signatureData;
+    }
+    
+    const attendance = getAttendanceRepository().create(attendanceData);
+    await getAttendanceRepository().save(attendance);
+    
+    // 获取学生信息用于返回
+    const student = await getUserRepository().findOne({
+      where: { id: finalStudentId }
+    });
+    
+    return res.status(201).json({
+      message: '签到成功',
+      attendance: {
+        id: attendance.id,
+        studentId: finalStudentId,
+        studentName: student.name,
+        classId: classId,
+        className: classEntity.name,
+        attendanceTime: attendance.class_time,
+        method: method,
+        status: attendance.status,
+        notes: attendance.note
+      }
+    });
+  } catch (error) {
+    console.error('创建签到记录失败:', error);
+    return res.status(500).json({ message: '服务器错误，签到失败' });
+  }
+};
+
+/**
+ * 获取签到列表（教师用）
  */
 exports.getAttendanceList = async (req, res) => {
   try {
@@ -274,10 +411,7 @@ exports.getAttendanceList = async (req, res) => {
       const endDate = new Date(date);
       endDate.setHours(23, 59, 59, 999);
       
-      whereClause.class_time = {
-        $gte: startDate,
-        $lte: endDate
-      };
+      whereClause.class_time = Between(startDate, endDate);
     }
     
     // 按状态筛选
@@ -304,7 +438,7 @@ exports.getAttendanceList = async (req, res) => {
       studentName: attendance.student.name,
       classId: attendance.class.id,
       className: attendance.class.name,
-      attendanceTime: formatDateTime(attendance.class_time),
+      attendanceTime: formatDate(attendance.class_time),
       status: attendance.status,
       note: attendance.note,
       manuallyCreated: attendance.manuallyCreated
@@ -349,8 +483,11 @@ exports.getAttendanceStats = async (req, res) => {
       return res.status(403).json({ message: '您不是该班级的教师，无权查看签到统计' });
     }
     
-    // 构建日期范围
-    let dateFilter = {};
+    // 构建查询条件
+    const whereClause = {
+      class: { id: classId }
+    };
+    
     if (startDate && endDate) {
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
@@ -358,21 +495,19 @@ exports.getAttendanceStats = async (req, res) => {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       
-      dateFilter = {
-        $gte: start,
-        $lte: end
-      };
+      whereClause.class_time = Between(start, end);
     }
     
     // 获取班级所有学生
-    const students = classEntity.students;
+    const connection = getConnection();
+    const students = await connection.query(
+      'SELECT u.* FROM users u INNER JOIN class_student cs ON u.id = cs.student_id WHERE cs.class_id = ? AND u.role = "student"',
+      [classId]
+    );
     
     // 获取签到记录
     const attendances = await getAttendanceRepository().find({
-      where: {
-        class: { id: classId },
-        ...(Object.keys(dateFilter).length > 0 ? { class_time: dateFilter } : {})
-      },
+      where: whereClause,
       relations: ['student']
     });
     
@@ -470,7 +605,7 @@ exports.updateAttendance = async (req, res) => {
         id: attendance.id,
         status: attendance.status,
         note: attendance.note,
-        updatedAt: formatDateTime(attendance.updatedAt)
+        updatedAt: formatDate(attendance.updatedAt)
       }
     });
   } catch (error) {

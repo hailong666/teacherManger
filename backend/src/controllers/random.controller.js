@@ -1,6 +1,7 @@
 const { User } = require('../models/User');
-const { Class } = require('../models/Class');
-const { RandomCall } = require('../models/RandomCall');
+const Class = require('../models/Class');
+const ClassStudent = require('../models/ClassStudent');
+const RandomCall = require('../models/RandomCall');
 const { getConnection } = require('typeorm');
 const { generateRandomString, getPagination, formatDate } = require('../utils/helpers');
 
@@ -11,6 +12,10 @@ const getUserRepository = () => {
 // 获取Class仓库的辅助函数
 const getClassRepository = () => {
   return getConnection().getRepository(Class);
+};
+// 获取ClassStudent仓库的辅助函数
+const getClassStudentRepository = () => {
+  return getConnection().getRepository(ClassStudent);
 };
 // 获取RandomCall仓库的辅助函数
 const getRandomCallRepository = () => {
@@ -28,7 +33,7 @@ exports.randomSelect = async (req, res) => {
     // 验证班级是否存在
     const classEntity = await getClassRepository().findOne({
       where: { id: classId },
-      relations: ['teacher', 'students']
+      relations: ['teacher']
     });
 
     if (!classEntity) {
@@ -40,8 +45,17 @@ exports.randomSelect = async (req, res) => {
       return res.status(403).json({ message: '您不是该班级的教师，无权进行随机点名' });
     }
 
-    // 获取班级学生列表（排除指定的学生）
-    let students = classEntity.students;
+    // 通过ClassStudent中间表获取班级学生列表
+    const classStudents = await getClassStudentRepository().find({
+      where: { 
+        class_id: classId,
+        status: 'active'
+      },
+      relations: ['student']
+    });
+
+    // 获取学生列表（排除指定的学生）
+    let students = classStudents.map(cs => cs.student);
     if (excludeIds.length > 0) {
       students = students.filter(student => !excludeIds.includes(student.id));
     }
@@ -66,7 +80,7 @@ exports.randomSelect = async (req, res) => {
           id: student.id,
           name: student.name,
           avatar: student.avatar,
-          studentNumber: student.studentNumber
+          studentNumber: student.student_id
         });
       }
     }
@@ -98,7 +112,7 @@ exports.getClassStudents = async (req, res) => {
     // 验证班级是否存在
     const classEntity = await getClassRepository().findOne({
       where: { id: classId },
-      relations: ['teacher', 'students']
+      relations: ['teacher']
     });
 
     if (!classEntity) {
@@ -110,13 +124,24 @@ exports.getClassStudents = async (req, res) => {
       return res.status(403).json({ message: '您不是该班级的教师，无权查看学生列表' });
     }
 
+    // 通过ClassStudent中间表获取班级学生列表
+    const classStudents = await getClassStudentRepository().find({
+      where: { 
+        class_id: classId,
+        status: 'active'
+      },
+      relations: ['student']
+    });
+
     // 格式化学生列表
-    const students = classEntity.students.map(student => ({
-      id: student.id,
-      name: student.name,
-      avatar: student.avatar,
-      studentNumber: student.studentNumber,
-      email: student.email
+    const students = classStudents.map(classStudent => ({
+      id: classStudent.student.id,
+      name: classStudent.student.name,
+      avatar: classStudent.student.avatar,
+      studentNumber: classStudent.student.student_id,
+      email: classStudent.student.email,
+      seatNumber: classStudent.seat_number,
+      joinDate: classStudent.join_date
     }));
 
     return res.status(200).json({
@@ -302,7 +327,7 @@ exports.createRandomCall = async (req, res) => {
     // 验证班级是否存在
     const classEntity = await getClassRepository().findOne({
       where: { id: classId },
-      relations: ['teacher', 'students']
+      relations: ['teacher']
     });
 
     if (!classEntity) {
@@ -314,8 +339,17 @@ exports.createRandomCall = async (req, res) => {
       return res.status(403).json({ message: '您不是该班级的教师，无权创建点名记录' });
     }
 
+    // 通过ClassStudent中间表获取班级学生列表
+    const classStudents = await getClassStudentRepository().find({
+      where: { 
+        class_id: classId,
+        status: 'active'
+      },
+      relations: ['student']
+    });
+
     // 验证学生是否属于该班级
-    const classStudentIds = classEntity.students.map(student => student.id);
+    const classStudentIds = classStudents.map(cs => cs.student.id);
     const invalidStudentIds = studentIds.filter(id => !classStudentIds.includes(id));
     
     if (invalidStudentIds.length > 0) {
@@ -325,7 +359,7 @@ exports.createRandomCall = async (req, res) => {
     }
 
     // 获取学生姓名
-    const selectedStudents = classEntity.students.filter(student => studentIds.includes(student.id));
+    const selectedStudents = classStudents.filter(cs => studentIds.includes(cs.student.id)).map(cs => cs.student);
     const studentNames = selectedStudents.map(student => student.name).join('、');
 
     // 创建点名记录

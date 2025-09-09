@@ -19,8 +19,10 @@
     "vue-router": "^4.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@vitejs/plugin-vue": "^4.3.4",
-    "vite": "^4.4.9",
-    "sass": "^1.66.1"
+    "connect-history-api-fallback": "^2.0.0",
+    "sass": "^1.66.1",
+    "vite": "^4.4.9"
   }
 }

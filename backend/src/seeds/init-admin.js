@@ -38,7 +38,7 @@ async function initAdminUser() {
     await connection.execute(
       `INSERT INTO users (username, password, name, email, role, status, create_time, update_time) 
        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      ['admin', hashedPassword, '系统管理员', 'admin@example.com', 'teacher', 1]
+      ['admin', hashedPassword, '系统管理员', 'admin@example.com', 'admin', 1]
     );
     
     console.log('默认管理员账号创建成功:');

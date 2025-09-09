@@ -44,6 +44,16 @@ exports.formatDate = (date, format = 'YYYY-MM-DD HH:mm:ss') => {
 };
 
 /**
+ * 格式化日期时间（别名函数）
+ * @param {Date} date - 日期对象
+ * @param {String} format - 格式化模板
+ * @returns {String} 格式化后的日期字符串
+ */
+exports.formatDateTime = (date, format = 'YYYY-MM-DD HH:mm:ss') => {
+  return exports.formatDate(date, format);
+};
+
+/**
  * 分页助手函数
  * @param {Number} page - 页码
  * @param {Number} limit - 每页数量

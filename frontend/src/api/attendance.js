@@ -12,9 +12,9 @@ export function getAttendanceQRCode(classId) {
 // 学生扫码签到
 export function scanQRCodeAttendance(data) {
   return request({
-    url: '/attendance/scan',
+    url: `/attendance/scan/${data.sessionId}`,
     method: 'post',
-    data
+    data: { location: data.location }
   })
 }
 

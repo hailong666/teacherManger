@@ -11,38 +11,67 @@ module.exports = new EntitySchema({
     },
     student_id: {
       type: 'int',
-      nullable: false
+      nullable: false,
+      comment: '学生ID'
     },
     class_id: {
       type: 'int',
-      nullable: false
+      nullable: false,
+      comment: '班级ID'
     },
-    class_time: {
-      type: 'datetime',
-      nullable: false
+    date: {
+      type: 'date',
+      nullable: false,
+      comment: '考勤日期'
     },
-    location_lat: {
-      type: 'decimal',
-      precision: 10,
-      scale: 7,
-      nullable: true
-    },
-    location_lng: {
-      type: 'decimal',
-      precision: 10,
-      scale: 7,
-      nullable: true
+    time_slot: {
+      type: 'varchar',
+      length: 20,
+      nullable: true,
+      comment: '时间段（如：上午、下午、晚上）'
     },
     status: {
       type: 'enum',
-      enum: ['present', 'late', 'absent'],
-      default: 'present'
+      enum: ['present', 'absent', 'late', 'excused', 'sick_leave'],
+      default: 'present',
+      comment: '考勤状态'
     },
-    create_time: {
+    check_in_time: {
+      type: 'time',
+      nullable: true,
+      comment: '签到时间'
+    },
+    check_out_time: {
+      type: 'time',
+      nullable: true,
+      comment: '签退时间'
+    },
+    location: {
+      type: 'varchar',
+      length: 100,
+      nullable: true,
+      comment: '考勤地点'
+    },
+    notes: {
+      type: 'text',
+      nullable: true,
+      comment: '备注'
+    },
+    recorded_by: {
+      type: 'int',
+      nullable: true,
+      comment: '记录者ID'
+    },
+    is_manual: {
+      type: 'boolean',
+      default: false,
+      comment: '是否手动录入'
+    },
+    created_at: {
       type: 'timestamp',
       createDate: true
     },
-    update_time: {
+    updated_at: {
       type: 'timestamp',
       updateDate: true
     }
@@ -53,26 +82,45 @@ module.exports = new EntitySchema({
       target: 'User',
       joinColumn: {
         name: 'student_id'
-      },
-      onDelete: 'CASCADE'
+      }
     },
     class: {
       type: 'many-to-one',
       target: 'Class',
       joinColumn: {
         name: 'class_id'
-      },
-      onDelete: 'CASCADE'
-    }
+      }
+    },
+    // recordedBy: {
+    //   type: 'many-to-one',
+    //   target: 'User',
+    //   joinColumn: {
+    //     name: 'recorded_by'
+    //   }
+    // }
   },
   indices: [
     {
-      name: 'idx_student_class',
-      columns: ['student_id', 'class_id']
+      name: 'idx_student_date',
+      columns: ['student_id', 'date']
     },
     {
-      name: 'idx_class_time',
-      columns: ['class_time']
+      name: 'idx_class_date',
+      columns: ['class_id', 'date']
+    },
+    {
+      name: 'idx_status',
+      columns: ['status']
+    },
+    {
+      name: 'idx_recorded_by',
+      columns: ['recorded_by']
+    }
+  ],
+  uniques: [
+    {
+      name: 'unique_student_class_date_timeslot',
+      columns: ['student_id', 'class_id', 'date', 'time_slot']
     }
   ]
 });

@@ -18,18 +18,44 @@
           <el-icon><Odometer /></el-icon>
           <template #title>首页</template>
         </el-menu-item>
-        <el-menu-item index="/attendance">
-          <el-icon><Calendar /></el-icon>
-          <template #title>学生签到</template>
-        </el-menu-item>
+        
+        <!-- 教师专用菜单 -->
+        <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
+          <el-menu-item index="/attendance">
+            <el-icon><Calendar /></el-icon>
+            <template #title>学生签到</template>
+          </el-menu-item>
+          <el-menu-item index="/classroom-attendance">
+            <el-icon><Calendar /></el-icon>
+            <template #title>教室签到</template>
+          </el-menu-item>
+          <el-menu-item index="/whiteboard-attendance">
+            <el-icon><Edit /></el-icon>
+            <template #title>希沃白板签到</template>
+          </el-menu-item>
+        </template>
+        
+        <!-- 学生专用菜单 -->
+        <template v-if="userStore.hasRole('student')">
+          <el-menu-item index="/student-attendance">
+            <el-icon><Calendar /></el-icon>
+            <template #title>我的签到</template>
+          </el-menu-item>
+        </template>
+        
         <el-menu-item index="/recitation">
           <el-icon><Microphone /></el-icon>
           <template #title>背诵打卡</template>
         </el-menu-item>
-        <el-menu-item index="/random-call">
-          <el-icon><User /></el-icon>
-          <template #title>随机点名</template>
-        </el-menu-item>
+        
+        <!-- 教师专用菜单 -->
+        <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
+          <el-menu-item index="/random-call">
+            <el-icon><User /></el-icon>
+            <template #title>随机点名</template>
+          </el-menu-item>
+        </template>
+        
         <el-menu-item index="/points">
           <el-icon><Star /></el-icon>
           <template #title>班级积分</template>
@@ -41,6 +67,28 @@
         <el-menu-item index="/profile">
           <el-icon><User /></el-icon>
           <template #title>个人中心</template>
+        </el-menu-item>
+        
+        <!-- 管理员专用菜单 -->
+        <template v-if="userStore.hasRole('admin')">
+          <el-menu-item index="/class-management">
+            <el-icon><School /></el-icon>
+            <template #title>班级管理</template>
+          </el-menu-item>
+          <el-menu-item index="/user-management">
+            <el-icon><User /></el-icon>
+            <template #title>用户管理</template>
+          </el-menu-item>
+          <el-menu-item index="/role-management">
+            <el-icon><Setting /></el-icon>
+            <template #title>角色管理</template>
+          </el-menu-item>
+        </template>
+        
+        <!-- 角色测试页面 - 所有用户可访问 -->
+        <el-menu-item index="/role-test">
+          <el-icon><Setting /></el-icon>
+          <template #title>角色测试</template>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -59,7 +107,7 @@
           <el-dropdown trigger="click">
             <span class="user-dropdown">
               <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
-              <span class="username">管理员</span>
+              <span class="username">{{ userStore.userInfo?.real_name || userStore.userInfo?.name || '用户' }}</span>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -84,14 +132,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { logout } from '@/api/user'
+import { useUserStore } from '@/stores/user'
+import { Setting, School, Edit } from '@element-plus/icons-vue'
 
 // 路由实例
 const route = useRoute()
 const router = useRouter()
+
+// 用户store
+const userStore = useUserStore()
 
 // 侧边栏折叠状态
 const isCollapse = ref(false)
@@ -120,13 +173,30 @@ const handleLogout = () => {
   }).then(async () => {
     try {
       await logout()
-      localStorage.removeItem('teacher-manager-token')
+      userStore.logout()
       router.push('/login')
     } catch (error) {
       console.error('登出失败:', error)
+      // 即使API调用失败，也要清除本地状态
+      userStore.logout()
+      router.push('/login')
     }
   }).catch(() => {})
 }
+
+// 组件挂载时获取用户信息
+onMounted(async () => {
+  if (userStore.token && !userStore.userInfo) {
+    try {
+      await userStore.getUserInfo()
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      // 如果获取用户信息失败，可能token已过期，跳转到登录页
+      userStore.logout()
+      router.push('/login')
+    }
+  }
+})
 </script>
 
 <style scoped>

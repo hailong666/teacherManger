@@ -12,30 +12,75 @@ module.exports = new EntitySchema({
     name: {
       type: 'varchar',
       length: 100,
-      nullable: false
+      nullable: false,
+      comment: '班级名称'
+    },
+    code: {
+      type: 'varchar',
+      length: 20,
+      nullable: true,
+      comment: '班级代码'
+    },
+    grade: {
+      type: 'varchar',
+      length: 20,
+      nullable: false,
+      comment: '年级'
     },
     teacher_id: {
       type: 'int',
-      nullable: false
+      nullable: false,
+      comment: '班主任ID'
+    },
+    assistant_teacher_id: {
+      type: 'int',
+      nullable: true,
+      comment: '副班主任ID'
+    },
+    academic_year: {
+      type: 'varchar',
+      length: 20,
+      nullable: false,
+      comment: '学年'
+    },
+    semester: {
+      type: 'enum',
+      enum: ['spring', 'fall'],
+      nullable: false,
+      comment: '学期'
+    },
+    max_students: {
+      type: 'int',
+      default: 50,
+      comment: '最大学生数'
+    },
+    current_students: {
+      type: 'int',
+      default: 0,
+      comment: '当前学生数'
+    },
+    classroom: {
+      type: 'varchar',
+      length: 50,
+      nullable: true,
+      comment: '教室'
     },
     description: {
       type: 'text',
-      nullable: true
-    },
-    schedule: {
-      type: 'varchar',
-      length: 255,
-      nullable: true
+      nullable: true,
+      comment: '班级描述'
     },
     status: {
-      type: 'boolean',
-      default: true
+      type: 'enum',
+      enum: ['active', 'inactive', 'archived'],
+      default: 'active',
+      comment: '状态'
     },
-    create_time: {
+    created_at: {
       type: 'timestamp',
       createDate: true
     },
-    update_time: {
+    updated_at: {
       type: 'timestamp',
       updateDate: true
     }
@@ -46,29 +91,62 @@ module.exports = new EntitySchema({
       target: 'User',
       joinColumn: {
         name: 'teacher_id'
-      },
-      onDelete: 'CASCADE'
-    },
-    students: {
-      type: 'many-to-many',
-      target: 'User',
-      joinTable: {
-        name: 'class_student',
-        joinColumn: {
-          name: 'class_id',
-          referencedColumnName: 'id'
-        },
-        inverseJoinColumn: {
-          name: 'student_id',
-          referencedColumnName: 'id'
-        }
       }
+    },
+    assistantTeacher: {
+      type: 'many-to-one',
+      target: 'User',
+      joinColumn: {
+        name: 'assistant_teacher_id'
+      }
+    },
+    classStudents: {
+      type: 'one-to-many',
+      target: 'ClassStudent',
+      inverseSide: 'class'
+    },
+    attendances: {
+      type: 'one-to-many',
+      target: 'Attendance',
+      inverseSide: 'class'
+    },
+    points: {
+      type: 'one-to-many',
+      target: 'Points',
+      inverseSide: 'class'
+    },
+    recitations: {
+      type: 'one-to-many',
+      target: 'Recitation',
+      inverseSide: 'class'
+    },
+    randomCalls: {
+      type: 'one-to-many',
+      target: 'RandomCall',
+      inverseSide: 'class'
+    },
+    assignments: {
+      type: 'one-to-many',
+      target: 'Assignment',
+      inverseSide: 'class'
     }
   },
   indices: [
     {
-      name: 'idx_teacher',
+      name: 'idx_teacher_id',
       columns: ['teacher_id']
+    },
+    {
+      name: 'idx_grade',
+      columns: ['grade']
+    },
+    {
+      name: 'idx_academic_year',
+      columns: ['academic_year']
+    },
+    {
+      name: 'idx_status',
+      columns: ['status']
     }
   ]
 });

@@ -234,8 +234,8 @@ const loadRecitations = async () => {
       classId: filterClassId.value || undefined
     }
     const response = await getRecitationList(params)
-    recitations.value = response.data.recitations || response.data
-    total.value = response.data.pagination?.total || response.data.length
+    recitations.value = response.recitations || []
+    total.value = response.pagination?.total || 0
     
     // 检查学生今日是否已提交
     if (userRole.value === 'student') {
@@ -246,6 +246,7 @@ const loadRecitations = async () => {
       )
     }
   } catch (error) {
+    console.error('加载背诵记录失败:', error)
     ElMessage.error('加载背诵记录失败')
   } finally {
     loading.value = false
@@ -255,7 +256,7 @@ const loadRecitations = async () => {
 const loadClasses = async () => {
   try {
     const response = await getClasses()
-    classes.value = response.data
+    classes.value = response.classes || []
     
     // 学生只能看到自己的班级
     if (userRole.value === 'student') {
@@ -264,6 +265,7 @@ const loadClasses = async () => {
       )
     }
   } catch (error) {
+    console.error('加载班级列表失败:', error)
     ElMessage.error('加载班级列表失败')
   }
 }
@@ -271,8 +273,9 @@ const loadClasses = async () => {
 const loadStats = async () => {
   try {
     const response = await getRecitationStats()
-    recitationStats.value = response.data
+    recitationStats.value = response.stats || { total: 0, pending: 0, graded: 0, averageScore: 0 }
   } catch (error) {
+    console.error('加载统计数据失败:', error)
     ElMessage.error('加载统计数据失败')
   }
 }
