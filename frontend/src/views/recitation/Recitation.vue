@@ -176,62 +176,87 @@
     </el-dialog>
 
     <!-- 快速标记完成对话框 -->
-    <el-dialog v-model="showQuickMarkDialog" title="快速标记完成" width="900px">
+    <el-dialog v-model="showQuickMarkDialog" title="快速标记完成" width="1200px" top="5vh">
       <div class="quick-mark-container">
-        <!-- 班级选择 -->
-        <div class="step-section">
-          <h3>1. 选择班级</h3>
-          <el-select v-model="quickMarkForm.classId" placeholder="请选择班级" style="width: 300px;" @change="loadStudentsForQuickMark">
-            <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
-          </el-select>
-        </div>
-
-        <!-- 学生选择 -->
-        <div class="step-section" v-if="quickMarkForm.classId">
-          <h3>2. 选择学生</h3>
-          <div class="student-grid">
-            <div 
-              v-for="student in quickMarkStudents" 
-              :key="student.id" 
-              class="student-card"
-              :class="{ 'selected': quickMarkForm.studentId === student.id }"
-              @click="selectStudent(student.id)"
-            >
-              <div class="student-avatar">{{ student.name.charAt(0) }}</div>
-              <div class="student-name">{{ student.name }}</div>
-            </div>
+        <!-- 班级选择和操作栏 -->
+        <div class="quick-mark-header">
+          <div class="class-selector">
+            <el-select v-model="quickMarkForm.classId" placeholder="请选择班级" style="width: 200px;" @change="loadStudentsForQuickMark">
+              <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
+            </el-select>
+          </div>
+          <div class="batch-actions" v-if="quickMarkForm.classId">
+            <el-button type="success" size="small" @click="batchMarkAll" :disabled="!hasSelectedItems">批量标记选中</el-button>
+            <el-button type="warning" size="small" @click="clearAllSelections">清空选择</el-button>
+            <span class="selection-count">已选择: {{ selectedCount }} 项</span>
           </div>
         </div>
 
-        <!-- 课文选择 -->
-        <div class="step-section" v-if="quickMarkForm.studentId">
-          <h3>3. 选择课文</h3>
-          <div class="article-grid">
-            <div 
+        <!-- 快速标记表格 -->
+        <div class="quick-mark-table" v-if="quickMarkForm.classId && quickMarkStudents.length > 0">
+          <el-table 
+            :data="quickMarkTableData" 
+            border 
+            stripe
+            max-height="500px"
+            @selection-change="handleSelectionChange"
+          >
+            <el-table-column type="selection" width="55" align="center" />
+            <el-table-column prop="studentName" label="学生姓名" width="120" fixed="left">
+              <template #default="{ row }">
+                <div class="student-info">
+                  <div class="student-avatar-small">{{ row.studentName.charAt(0) }}</div>
+                  <span>{{ row.studentName }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column 
               v-for="article in articles" 
               :key="article.id" 
-              class="article-card"
-              :class="{ 'selected': quickMarkForm.articleId === article.id }"
-              @click="selectArticle(article.id)"
+              :label="article.title" 
+              :width="150"
+              align="center"
             >
-              <div class="article-title">{{ article.title }}</div>
-              <div class="article-meta">
-                <el-tag size="small">{{ article.category }}</el-tag>
-                <el-tag size="small" type="warning">难度: {{ article.difficulty }}</el-tag>
-              </div>
-            </div>
-          </div>
+              <template #header>
+                <div class="article-header">
+                  <div class="article-title-small">{{ article.title }}</div>
+                  <el-tag size="small" :type="getCategoryType(article.category)">{{ article.category }}</el-tag>
+                </div>
+              </template>
+              <template #default="{ row }">
+                <el-button 
+                  :type="isMarked(row.studentId, article.id) ? 'success' : 'primary'"
+                  :icon="isMarked(row.studentId, article.id) ? 'Check' : 'Plus'"
+                  size="small"
+                  @click="toggleMark(row.studentId, article.id)"
+                  :disabled="quickMarking"
+                >
+                  {{ isMarked(row.studentId, article.id) ? '已标记' : '标记' }}
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
 
-        <!-- 备注 -->
-        <div class="step-section" v-if="quickMarkForm.articleId">
-          <h3>4. 添加备注（可选）</h3>
-          <el-input v-model="quickMarkForm.remark" type="textarea" :rows="2" placeholder="请输入备注" style="width: 100%;" />
+        <!-- 空状态 -->
+        <div v-if="quickMarkForm.classId && quickMarkStudents.length === 0" class="empty-state">
+          <el-empty description="该班级暂无学生" />
+        </div>
+        
+        <div v-if="!quickMarkForm.classId" class="empty-state">
+          <el-empty description="请先选择班级" />
         </div>
       </div>
       <template #footer>
-        <el-button @click="showQuickMarkDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleQuickMark" :loading="quickMarking">确认标记</el-button>
+        <div class="dialog-footer">
+          <div class="footer-info">
+            <span v-if="quickMarkForm.classId">共 {{ quickMarkStudents.length }} 名学生，{{ articles.length }} 篇课文</span>
+          </div>
+          <div class="footer-actions">
+            <el-button @click="showQuickMarkDialog = false">关闭</el-button>
+            <el-button type="primary" @click="saveAllMarks" :loading="quickMarking" :disabled="!hasAnyMarks">保存所有标记</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
@@ -344,11 +369,13 @@ const manualCheckForm = reactive({
 })
 
 const quickMarkForm = reactive({
-  classId: '',
-  studentId: '',
-  articleId: '',
-  remark: ''
+  classId: ''
 })
+
+// 快速标记状态管理
+const quickMarkData = ref(new Map()) // 存储标记状态: key为"studentId-articleId", value为true
+const selectedTableRows = ref([]) // 表格选中的行
+const quickMarkTableData = ref([]) // 表格数据
 
 // 表单验证规则
 const gradeRules = {
@@ -619,74 +646,133 @@ const resetManualCheckForm = () => {
 const loadStudentsForQuickMark = async () => {
   if (!quickMarkForm.classId) {
     quickMarkStudents.value = []
+    quickMarkTableData.value = []
     return
   }
   
   try {
-    const response = await getUserList({ classId: quickMarkForm.classId, role: 'student' })
-    quickMarkStudents.value = response.users || []
+    const response = await getUsersByClass(quickMarkForm.classId)
+    quickMarkStudents.value = response.class?.students || []
+    
+    // 构建表格数据
+    quickMarkTableData.value = quickMarkStudents.value.map(student => ({
+      studentId: student.id,
+      studentName: student.name
+    }))
+    
+    // 清空之前的标记状态
+    quickMarkData.value.clear()
+    selectedTableRows.value = []
   } catch (error) {
     console.error('加载学生列表失败:', error)
     ElMessage.error('加载学生列表失败')
   }
 }
 
-const onQuickMarkArticleChange = () => {
-  if (quickMarkForm.articleId) {
-    quickMarkSelectedArticle.value = articles.value.find(article => article.id === quickMarkForm.articleId)
+// 检查是否已标记
+const isMarked = (studentId, articleId) => {
+  return quickMarkData.value.has(`${studentId}-${articleId}`)
+}
+
+// 切换标记状态
+const toggleMark = (studentId, articleId) => {
+  const key = `${studentId}-${articleId}`
+  if (quickMarkData.value.has(key)) {
+    quickMarkData.value.delete(key)
   } else {
-    quickMarkSelectedArticle.value = null
+    quickMarkData.value.set(key, true)
   }
 }
 
-const resetQuickMarkForm = () => {
-  Object.assign(quickMarkForm, {
-    classId: '',
-    studentId: '',
-    articleId: '',
-    remark: ''
+// 表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedTableRows.value = selection
+}
+
+// 批量标记选中的学生和所有课文
+const batchMarkAll = () => {
+  selectedTableRows.value.forEach(row => {
+    articles.value.forEach(article => {
+      const key = `${row.studentId}-${article.id}`
+      quickMarkData.value.set(key, true)
+    })
   })
-  quickMarkStudents.value = []
-  quickMarkSelectedArticle.value = null
+  ElMessage.success(`已为 ${selectedTableRows.value.length} 名学生标记所有课文`)
 }
 
-const selectStudent = (studentId) => {
-  quickMarkForm.studentId = studentId
-  // 重置课文选择
-  quickMarkForm.articleId = ''
-  quickMarkSelectedArticle.value = null
+// 清空所有选择
+const clearAllSelections = () => {
+  quickMarkData.value.clear()
+  selectedTableRows.value = []
+  ElMessage.success('已清空所有标记')
 }
 
-const selectArticle = (articleId) => {
-  quickMarkForm.articleId = articleId
-  quickMarkSelectedArticle.value = articles.value.find(article => article.id === articleId)
-}
-
-const handleQuickMark = async () => {
+// 保存所有标记
+const saveAllMarks = async () => {
+  if (quickMarkData.value.size === 0) {
+    ElMessage.warning('请先进行标记')
+    return
+  }
+  
+  if (!quickMarkForm.classId) {
+    ElMessage.warning('请先选择班级')
+    return
+  }
+  
   try {
-    await quickMarkFormRef.value.validate()
     quickMarking.value = true
+    const markPromises = []
     
-    const markData = {
-      studentId: quickMarkForm.studentId,
-      articleId: quickMarkForm.articleId,
-      remark: quickMarkForm.remark
+    // 批量提交所有标记
+    for (const [key, _] of quickMarkData.value) {
+      const [studentId, articleId] = key.split('-')
+      markPromises.push(markRecitationComplete({
+        studentId: parseInt(studentId),
+        articleId: parseInt(articleId),
+        classId: quickMarkForm.classId, // 添加必需的班级ID
+        remark: '快速批量标记'
+      }))
     }
     
-    await markRecitationComplete(markData)
-    ElMessage.success('标记背诵完成成功')
+    await Promise.all(markPromises)
+    ElMessage.success(`成功标记 ${quickMarkData.value.size} 项背诵任务`)
     
     showQuickMarkDialog.value = false
     resetQuickMarkForm()
     loadRecitations()
     loadStats()
   } catch (error) {
-    console.error('标记背诵完成失败:', error)
-    ElMessage.error(error.response?.data?.message || '标记背诵完成失败')
+    console.error('批量标记失败:', error)
+    ElMessage.error('批量标记失败，请重试')
   } finally {
     quickMarking.value = false
   }
 }
+
+// 重置快速标记表单
+const resetQuickMarkForm = () => {
+  quickMarkForm.classId = ''
+  quickMarkStudents.value = []
+  quickMarkTableData.value = []
+  quickMarkData.value.clear()
+  selectedTableRows.value = []
+}
+
+// 获取分类标签类型
+const getCategoryType = (category) => {
+  const types = {
+    '古诗词': 'success',
+    '现代诗': 'primary',
+    '散文': 'warning',
+    '文言文': 'danger'
+  }
+  return types[category] || 'info'
+}
+
+// 计算属性
+const hasSelectedItems = computed(() => selectedTableRows.value.length > 0)
+const selectedCount = computed(() => selectedTableRows.value.length)
+const hasAnyMarks = computed(() => quickMarkData.value.size > 0)
 
 const playAudio = (audioUrl) => {
   if (audioUrl) {
@@ -804,52 +890,50 @@ onMounted(() => {
 
 /* 快速标记样式 */
 .quick-mark-container {
-  padding: 20px 0;
+  padding: 0;
 }
 
-.step-section {
-  margin-bottom: 30px;
-}
-
-.step-section h3 {
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.student-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 15px;
-  margin-top: 10px;
-}
-
-.student-card {
+.quick-mark-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
   padding: 15px;
-  border: 2px solid #e4e7ed;
+  background: #f8f9fa;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #fff;
 }
 
-.student-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+.class-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.student-card.selected {
-  border-color: #409eff;
-  background-color: #ecf5ff;
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.student-avatar {
-  width: 40px;
-  height: 40px;
+.selection-count {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.quick-mark-table {
+  margin-top: 20px;
+}
+
+.student-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-avatar-small {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -857,55 +941,58 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 16px;
-  margin-bottom: 8px;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
-.student-name {
-  font-size: 14px;
-  color: #333;
+.article-header {
   text-align: center;
-  font-weight: 500;
 }
 
-.article-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 15px;
-  margin-top: 10px;
-}
-
-.article-card {
-  padding: 20px;
-  border: 2px solid #e4e7ed;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #fff;
-}
-
-.article-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
-}
-
-.article-card.selected {
-  border-color: #409eff;
-  background-color: #ecf5ff;
-}
-
-.article-title {
-  font-size: 16px;
+.article-title-small {
+  font-size: 13px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 10px;
-  line-height: 1.4;
+  margin-bottom: 4px;
+  line-height: 1.2;
+  word-break: break-all;
 }
 
-.article-card .article-meta {
+.empty-state {
+  padding: 40px 0;
+  text-align: center;
+}
+
+.dialog-footer {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.footer-info {
+  color: #666;
+  font-size: 14px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 表格样式优化 */
+.quick-mark-table .el-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quick-mark-table .el-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.quick-mark-table .el-button {
+  min-width: 70px;
 }
 
 @media (max-width: 768px) {
