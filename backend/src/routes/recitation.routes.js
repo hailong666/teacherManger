@@ -18,6 +18,13 @@ router.put('/:id/grade',
   recitationController.gradeRecitation
 );
 
+// 教师快速标记学生背诵完成
+router.post('/mark-complete', 
+  authMiddleware.verifyToken, 
+  authMiddleware.checkRole(['teacher', 'admin']), 
+  recitationController.markRecitationComplete
+);
+
 // 获取背诵打卡列表
 router.get('/', 
   authMiddleware.verifyToken, 

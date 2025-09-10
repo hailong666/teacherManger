@@ -301,7 +301,7 @@ exports.getAllUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // 过滤参数
-    const { role, status, search } = req.query;
+    const { role, status, search, classId } = req.query;
     
     // 构建查询条件
     let queryBuilder = userRepository.createQueryBuilder('user')
@@ -312,6 +312,13 @@ exports.getAllUsers = async (req, res) => {
         'role.id', 'role.name', 'role.display_name'
       ])
       .orderBy('user.created_at', 'DESC');
+    
+    // 添加班级过滤（如果指定了classId）
+    if (classId) {
+      queryBuilder = queryBuilder
+        .innerJoin('class_students', 'cs', 'cs.student_id = user.id')
+        .andWhere('cs.class_id = :classId', { classId });
+    }
     
     // 添加角色过滤
     if (role) {

@@ -36,6 +36,15 @@ export function gradeRecitation(id, data) {
   })
 }
 
+// 教师快速标记学生背诵完成
+export function markRecitationComplete(data) {
+  return request({
+    url: '/recitation/mark-complete',
+    method: 'post',
+    data
+  })
+}
+
 // 获取背诵打卡详情
 export function getRecitationById(id) {
   return request({

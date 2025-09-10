@@ -68,9 +68,13 @@
               <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
             </el-select>
             <el-button @click="loadRecitations">刷新</el-button>
-            <el-button v-if="userRole === 'teacher' || userRole === 'admin'" type="success" @click="showTeacherSubmitDialog = true">
+            <el-button v-if="userRole === 'teacher' || userRole === 'admin'" type="success" @click="showManualCheckDialog = true">
               <el-icon><Plus /></el-icon>
-              代学生打卡
+              手动打卡
+            </el-button>
+            <el-button v-if="userRole === 'teacher' || userRole === 'admin'" type="primary" @click="showQuickMarkDialog = true">
+              <el-icon><Check /></el-icon>
+              快速标记完成
             </el-button>
           </div>
         </div>
@@ -171,41 +175,101 @@
       </template>
     </el-dialog>
 
-    <!-- 教师代学生打卡对话框 -->
-    <el-dialog v-model="showTeacherSubmitDialog" title="代学生打卡" width="600px">
-      <el-form :model="teacherSubmitForm" :rules="teacherSubmitRules" ref="teacherSubmitFormRef" label-width="100px">
+    <!-- 快速标记完成对话框 -->
+    <el-dialog v-model="showQuickMarkDialog" title="快速标记完成" width="900px">
+      <div class="quick-mark-container">
+        <!-- 班级选择 -->
+        <div class="step-section">
+          <h3>1. 选择班级</h3>
+          <el-select v-model="quickMarkForm.classId" placeholder="请选择班级" style="width: 300px;" @change="loadStudentsForQuickMark">
+            <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
+          </el-select>
+        </div>
+
+        <!-- 学生选择 -->
+        <div class="step-section" v-if="quickMarkForm.classId">
+          <h3>2. 选择学生</h3>
+          <div class="student-grid">
+            <div 
+              v-for="student in quickMarkStudents" 
+              :key="student.id" 
+              class="student-card"
+              :class="{ 'selected': quickMarkForm.studentId === student.id }"
+              @click="selectStudent(student.id)"
+            >
+              <div class="student-avatar">{{ student.name.charAt(0) }}</div>
+              <div class="student-name">{{ student.name }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 课文选择 -->
+        <div class="step-section" v-if="quickMarkForm.studentId">
+          <h3>3. 选择课文</h3>
+          <div class="article-grid">
+            <div 
+              v-for="article in articles" 
+              :key="article.id" 
+              class="article-card"
+              :class="{ 'selected': quickMarkForm.articleId === article.id }"
+              @click="selectArticle(article.id)"
+            >
+              <div class="article-title">{{ article.title }}</div>
+              <div class="article-meta">
+                <el-tag size="small">{{ article.category }}</el-tag>
+                <el-tag size="small" type="warning">难度: {{ article.difficulty }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 备注 -->
+        <div class="step-section" v-if="quickMarkForm.articleId">
+          <h3>4. 添加备注（可选）</h3>
+          <el-input v-model="quickMarkForm.remark" type="textarea" :rows="2" placeholder="请输入备注" style="width: 100%;" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showQuickMarkDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleQuickMark" :loading="quickMarking">确认标记</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 手动打卡对话框 -->
+    <el-dialog v-model="showManualCheckDialog" title="手动打卡" width="600px">
+      <el-form :model="manualCheckForm" :rules="manualCheckRules" ref="manualCheckFormRef" label-width="100px">
         <el-form-item label="选择班级" prop="classId">
-          <el-select v-model="teacherSubmitForm.classId" placeholder="请选择班级" style="width: 100%;" @change="loadStudentsByClass">
+          <el-select v-model="manualCheckForm.classId" placeholder="请选择班级" style="width: 100%;" @change="loadStudentsForManualCheck">
             <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="选择学生" prop="studentId">
-          <el-select v-model="teacherSubmitForm.studentId" placeholder="请选择学生" style="width: 100%;" :disabled="!teacherSubmitForm.classId">
-            <el-option v-for="student in classStudents" :key="student.id" :label="student.name" :value="student.id" />
+          <el-select v-model="manualCheckForm.studentId" placeholder="请选择学生" style="width: 100%;" :disabled="!manualCheckForm.classId">
+            <el-option v-for="student in manualCheckStudents" :key="student.id" :label="student.name" :value="student.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="选择课文" prop="articleId">
-          <el-select v-model="teacherSubmitForm.articleId" placeholder="请选择课文" style="width: 100%;" @change="onArticleChange">
+          <el-select v-model="manualCheckForm.articleId" placeholder="请选择课文" style="width: 100%;" @change="onManualCheckArticleChange">
             <el-option v-for="article in articles" :key="article.id" :label="article.title" :value="article.id" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="selectedArticle" label="课文内容">
+        <el-form-item v-if="manualCheckSelectedArticle" label="课文内容">
           <div class="article-content">
-            <h4>{{ selectedArticle.title }}</h4>
-            <p class="article-text">{{ selectedArticle.content }}</p>
+            <h4>{{ manualCheckSelectedArticle.title }}</h4>
+            <p class="article-text">{{ manualCheckSelectedArticle.content }}</p>
             <div class="article-meta">
-              <el-tag>{{ selectedArticle.category }}</el-tag>
-              <el-tag type="warning">难度: {{ selectedArticle.difficulty }}</el-tag>
+              <el-tag>{{ manualCheckSelectedArticle.category }}</el-tag>
+              <el-tag type="warning">难度: {{ manualCheckSelectedArticle.difficulty }}</el-tag>
             </div>
           </div>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="teacherSubmitForm.remark" type="textarea" :rows="3" placeholder="请输入备注（可选）" />
+          <el-input v-model="manualCheckForm.remark" type="textarea" :rows="3" placeholder="请输入备注（可选）" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showTeacherSubmitDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleTeacherSubmit" :loading="teacherSubmitting">确认打卡</el-button>
+        <el-button @click="showManualCheckDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleManualCheck" :loading="manualChecking">确认打卡</el-button>
       </template>
     </el-dialog>
   </div>
@@ -214,32 +278,38 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Check } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { 
   getRecitationList, 
   submitRecitation,
   gradeRecitation,
   getRecitationStats,
-  getClasses
+  getClasses,
+  markRecitationComplete
 } from '@/api/recitation'
 import { getArticleList } from '@/api/article'
-import { getUserList } from '@/api/user'
+import { getUserList, getUsersByClass } from '@/api/user'
 
 const userStore = useUserStore()
-const userRole = computed(() => userStore.user?.role)
+const userRole = computed(() => userStore.userRole)
 
 // 数据状态
 const loading = ref(false)
 const grading = ref(false)
 const submitting = ref(false)
-const teacherSubmitting = ref(false)
+const manualChecking = ref(false)
+const quickMarking = ref(false)
 const recitations = ref([])
 const classes = ref([])
 const studentClasses = ref([])
 const articles = ref([])
 const classStudents = ref([])
+const manualCheckStudents = ref([])
+const quickMarkStudents = ref([])
 const selectedArticle = ref(null)
+const manualCheckSelectedArticle = ref(null)
+const quickMarkSelectedArticle = ref(null)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -250,7 +320,8 @@ const todaySubmitted = ref(false)
 // 对话框状态
 const showGradeDialog = ref(false)
 const showSubmitDialog = ref(false)
-const showTeacherSubmitDialog = ref(false)
+const showManualCheckDialog = ref(false)
+const showQuickMarkDialog = ref(false)
 const currentRecitation = ref(null)
 
 // 表单数据
@@ -265,7 +336,14 @@ const submitForm = reactive({
   audioUrl: ''
 })
 
-const teacherSubmitForm = reactive({
+const manualCheckForm = reactive({
+  classId: '',
+  studentId: '',
+  articleId: '',
+  remark: ''
+})
+
+const quickMarkForm = reactive({
   classId: '',
   studentId: '',
   articleId: '',
@@ -282,7 +360,13 @@ const submitRules = {
   content: [{ required: true, message: '请输入背诵内容', trigger: 'blur' }]
 }
 
-const teacherSubmitRules = {
+const manualCheckRules = {
+  classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+  studentId: [{ required: true, message: '请选择学生', trigger: 'change' }],
+  articleId: [{ required: true, message: '请选择课文', trigger: 'change' }]
+}
+
+const quickMarkRules = {
   classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
   studentId: [{ required: true, message: '请选择学生', trigger: 'change' }],
   articleId: [{ required: true, message: '请选择课文', trigger: 'change' }]
@@ -294,7 +378,8 @@ const recitationStats = ref({ total: 0, pending: 0, graded: 0, averageScore: 0 }
 // 表单引用
 const gradeFormRef = ref()
 const submitFormRef = ref()
-const teacherSubmitFormRef = ref()
+const manualCheckFormRef = ref()
+const quickMarkFormRef = ref()
 
 // 方法
 const loadRecitations = async () => {
@@ -329,13 +414,12 @@ const loadRecitations = async () => {
 const loadClasses = async () => {
   try {
     const response = await getClasses()
+    // 后端API已经根据用户权限过滤了班级，直接使用返回的数据
     classes.value = response.classes || []
     
-    // 学生只能看到自己的班级
+    // 学生角色需要单独设置studentClasses
     if (userRole.value === 'student') {
-      studentClasses.value = classes.value.filter(cls => 
-        userStore.user.classIds?.includes(cls.id)
-      )
+      studentClasses.value = classes.value
     }
   } catch (error) {
     console.error('加载班级列表失败:', error)
@@ -468,58 +552,139 @@ const loadArticles = async () => {
   }
 }
 
-const loadStudentsByClass = async () => {
-  if (!teacherSubmitForm.classId) {
-    classStudents.value = []
+const loadStudentsForManualCheck = async () => {
+  if (!manualCheckForm.classId) {
+    manualCheckStudents.value = []
     return
   }
   
   try {
-    const response = await getUserList({ 
-      role: 'student', 
-      classId: teacherSubmitForm.classId 
-    })
-    classStudents.value = response.users || []
-    teacherSubmitForm.studentId = '' // 重置学生选择
+    const response = await getUsersByClass(manualCheckForm.classId)
+    // 后端返回结构是 { class: { students: [...] } }
+    manualCheckStudents.value = response.class?.students || []
+    manualCheckForm.studentId = '' // 重置学生选择
   } catch (error) {
     console.error('加载学生列表失败:', error)
     ElMessage.error('加载学生列表失败')
   }
 }
 
-const onArticleChange = () => {
-  if (teacherSubmitForm.articleId) {
-    selectedArticle.value = articles.value.find(article => article.id === teacherSubmitForm.articleId)
+const onManualCheckArticleChange = () => {
+  if (manualCheckForm.articleId) {
+    manualCheckSelectedArticle.value = articles.value.find(article => article.id === manualCheckForm.articleId)
   } else {
-    selectedArticle.value = null
+    manualCheckSelectedArticle.value = null
   }
 }
 
-const handleTeacherSubmit = async () => {
+const handleManualCheck = async () => {
   try {
-    await teacherSubmitFormRef.value.validate()
-    teacherSubmitting.value = true
+    await manualCheckFormRef.value.validate()
+    manualChecking.value = true
     
-    const submitData = {
-      classId: teacherSubmitForm.classId,
-      studentId: teacherSubmitForm.studentId,
-      articleId: teacherSubmitForm.articleId,
-      content: selectedArticle.value?.content || '',
-      remark: teacherSubmitForm.remark
+    const checkData = {
+      studentId: manualCheckForm.studentId,
+      articleId: manualCheckForm.articleId,
+      classId: manualCheckForm.classId,
+      remark: manualCheckForm.remark
     }
     
-    await submitRecitation(submitData)
-    ElMessage.success('代学生打卡成功')
+    await markRecitationComplete(checkData)
+    ElMessage.success('手动打卡成功')
     
-    showTeacherSubmitDialog.value = false
-    resetTeacherSubmitForm()
+    showManualCheckDialog.value = false
+    resetManualCheckForm()
     loadRecitations()
     loadStats()
   } catch (error) {
-    console.error('代学生打卡失败:', error)
-    ElMessage.error('代学生打卡失败')
+    console.error('手动打卡失败:', error)
+    ElMessage.error('手动打卡失败')
   } finally {
-    teacherSubmitting.value = false
+    manualChecking.value = false
+  }
+}
+
+const resetManualCheckForm = () => {
+  Object.assign(manualCheckForm, {
+    classId: '',
+    studentId: '',
+    articleId: '',
+    remark: ''
+  })
+  manualCheckStudents.value = []
+  manualCheckSelectedArticle.value = null
+}
+
+// 快速标记相关方法
+const loadStudentsForQuickMark = async () => {
+  if (!quickMarkForm.classId) {
+    quickMarkStudents.value = []
+    return
+  }
+  
+  try {
+    const response = await getUserList({ classId: quickMarkForm.classId, role: 'student' })
+    quickMarkStudents.value = response.users || []
+  } catch (error) {
+    console.error('加载学生列表失败:', error)
+    ElMessage.error('加载学生列表失败')
+  }
+}
+
+const onQuickMarkArticleChange = () => {
+  if (quickMarkForm.articleId) {
+    quickMarkSelectedArticle.value = articles.value.find(article => article.id === quickMarkForm.articleId)
+  } else {
+    quickMarkSelectedArticle.value = null
+  }
+}
+
+const resetQuickMarkForm = () => {
+  Object.assign(quickMarkForm, {
+    classId: '',
+    studentId: '',
+    articleId: '',
+    remark: ''
+  })
+  quickMarkStudents.value = []
+  quickMarkSelectedArticle.value = null
+}
+
+const selectStudent = (studentId) => {
+  quickMarkForm.studentId = studentId
+  // 重置课文选择
+  quickMarkForm.articleId = ''
+  quickMarkSelectedArticle.value = null
+}
+
+const selectArticle = (articleId) => {
+  quickMarkForm.articleId = articleId
+  quickMarkSelectedArticle.value = articles.value.find(article => article.id === articleId)
+}
+
+const handleQuickMark = async () => {
+  try {
+    await quickMarkFormRef.value.validate()
+    quickMarking.value = true
+    
+    const markData = {
+      studentId: quickMarkForm.studentId,
+      articleId: quickMarkForm.articleId,
+      remark: quickMarkForm.remark
+    }
+    
+    await markRecitationComplete(markData)
+    ElMessage.success('标记背诵完成成功')
+    
+    showQuickMarkDialog.value = false
+    resetQuickMarkForm()
+    loadRecitations()
+    loadStats()
+  } catch (error) {
+    console.error('标记背诵完成失败:', error)
+    ElMessage.error(error.response?.data?.message || '标记背诵完成失败')
+  } finally {
+    quickMarking.value = false
   }
 }
 
@@ -619,9 +784,146 @@ onMounted(() => {
   align-items: center;
 }
 
+.article-preview {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.article-preview h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.article-preview .article-meta {
+  margin-top: 8px;
+}
+
+/* 快速标记样式 */
+.quick-mark-container {
+  padding: 20px 0;
+}
+
+.step-section {
+  margin-bottom: 30px;
+}
+
+.step-section h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.student-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.student-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.student-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.student-card.selected {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.student-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.student-name {
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+  font-weight: 500;
+}
+
+.article-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.article-card {
+  padding: 20px;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.article-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.article-card.selected {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.article-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.article-card .article-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 768px) {
   .recitation-container {
     padding: 10px;
+  }
+  
+  .student-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+  
+  .article-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-mark-container {
+    padding: 10px 0;
   }
   
   .card-header {

@@ -366,6 +366,117 @@ exports.getRecitationById = async (req, res) => {
 };
 
 /**
+ * 教师快速标记学生背诵完成
+ */
+exports.markRecitationComplete = async (req, res) => {
+  let connection;
+  try {
+    const { studentId, articleId, classId, remark } = req.body;
+    const teacherId = req.user.id;
+
+    // 验证必填参数
+    if (!studentId || !articleId || !classId) {
+      return res.status(400).json({ message: '学生ID、课文ID和班级ID为必填项' });
+    }
+
+    connection = await getConnection();
+
+    // 验证班级是否存在且教师有权限
+    const [classRows] = await connection.execute(
+      'SELECT id, name, teacher_id FROM classes WHERE id = ?',
+      [classId]
+    );
+
+    if (classRows.length === 0) {
+      return res.status(404).json({ message: '班级不存在' });
+    }
+
+    const classInfo = classRows[0];
+    if (classInfo.teacher_id !== teacherId) {
+      return res.status(403).json({ message: '您不是该班级的教师，无权标记背诵完成' });
+    }
+
+    // 验证学生是否存在且在该班级中
+    const [studentRows] = await connection.execute(
+      `SELECT u.id, u.name 
+       FROM users u 
+       JOIN class_students cs ON u.id = cs.student_id 
+       JOIN roles r ON u.role_id = r.id
+       WHERE u.id = ? AND cs.class_id = ? AND r.name = 'student' AND cs.status = 'active'`,
+      [studentId, classId]
+    );
+
+    if (studentRows.length === 0) {
+      return res.status(404).json({ message: '学生不存在或不在该班级中' });
+    }
+
+    const student = studentRows[0];
+
+    // 验证课文是否存在
+    const [articleRows] = await connection.execute(
+      'SELECT id, title FROM articles WHERE id = ?',
+      [articleId]
+    );
+
+    if (articleRows.length === 0) {
+      return res.status(404).json({ message: '课文不存在' });
+    }
+
+    const article = articleRows[0];
+
+    // 检查是否已经标记过该学生的该课文背诵
+    const [existingRows] = await connection.execute(
+      'SELECT id FROM recitation WHERE student_id = ? AND article_id = ? AND class_id = ?',
+      [studentId, articleId, classId]
+    );
+
+    if (existingRows.length > 0) {
+      return res.status(400).json({ message: '该学生已完成此课文背诵，无需重复标记' });
+    }
+
+    // 创建背诵完成记录
+    const [result] = await connection.execute(
+      `INSERT INTO recitation (student_id, class_id, article_id, content, status, score, feedback, 
+                              createdAt, updatedAt, gradedAt, gradedBy) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW(), ?)`,
+      [
+        studentId, 
+        classId, 
+        articleId, 
+        `教师标记完成：${article.title}`, 
+        'graded', 
+        100, // 默认满分
+        remark || '教师直接标记为背诵完成',
+        teacherId
+      ]
+    );
+
+    return res.status(201).json({
+      message: '背诵完成标记成功',
+      recitation: {
+        id: result.insertId,
+        studentId: student.id,
+        studentName: student.name,
+        articleId: article.id,
+        articleTitle: article.title,
+        className: classInfo.name,
+        score: 100,
+        status: 'graded',
+        remark: remark || '教师直接标记为背诵完成',
+        createdAt: formatDateTime(new Date())
+      }
+    });
+  } catch (error) {
+    console.error('标记背诵完成失败:', error);
+    return res.status(500).json({ message: '服务器错误，标记背诵完成失败' });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+};
+
+/**
  * 获取背诵打卡统计信息
  */
 exports.getRecitationStats = async (req, res) => {

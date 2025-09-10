@@ -12,6 +12,7 @@ export const useUserStore = defineStore('user', {
 
   getters: {
     isLoggedIn: (state) => !!state.token,
+    user: (state) => state.userInfo,
     hasRole: (state) => (role) => {
       if (state.userInfo?.role?.name) {
         return state.userInfo.role.name === role
