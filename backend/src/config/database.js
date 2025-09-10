@@ -6,7 +6,7 @@ module.exports = {
   type: 'mysql',
   host: '123.249.87.129',
   port: 3306,
-  username: 'root',
+  username: 'teacher_admin',
   password: 'jxj13140123',
   database: 'teacher_manager',
   entities: [path.join(__dirname, '../models/*.js')],
