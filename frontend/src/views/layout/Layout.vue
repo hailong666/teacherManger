@@ -48,6 +48,14 @@
           <template #title>背诵打卡</template>
         </el-menu-item>
         
+        <!-- 教师和管理员专用菜单 -->
+        <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
+          <el-menu-item index="/article-stats">
+            <el-icon><DataAnalysis /></el-icon>
+            <template #title>课文统计</template>
+          </el-menu-item>
+        </template>
+        
         <!-- 教师专用菜单 -->
         <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
           <el-menu-item index="/random-call">
@@ -82,6 +90,10 @@
           <el-menu-item index="/role-management">
             <el-icon><Setting /></el-icon>
             <template #title>角色管理</template>
+          </el-menu-item>
+          <el-menu-item index="/article-management">
+            <el-icon><Edit /></el-icon>
+            <template #title>课文管理</template>
           </el-menu-item>
         </template>
         
@@ -137,7 +149,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { logout } from '@/api/user'
 import { useUserStore } from '@/stores/user'
-import { Setting, School, Edit } from '@element-plus/icons-vue'
+import { Setting, School, Edit, DataAnalysis } from '@element-plus/icons-vue'
 
 // 路由实例
 const route = useRoute()

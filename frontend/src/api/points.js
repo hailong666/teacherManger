@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 给学生添加积分
 export function addPoints(data) {

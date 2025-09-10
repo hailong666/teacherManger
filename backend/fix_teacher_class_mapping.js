@@ -7,11 +7,11 @@ async function fixTeacherClassMapping() {
   try {
     // 创建数据库连接
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '3306'),
-      user: process.env.DB_USERNAME || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_DATABASE || 'teacher_manager'
+      host: '123.249.87.129',
+      port: 3306,
+      user: 'root',
+      password: 'jxj13140123',
+      database: 'teacher_manager'
     });
     
     console.log('数据库连接成功');

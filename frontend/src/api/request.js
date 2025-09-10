@@ -4,7 +4,7 @@ import router from '../router'
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: '/api', // 使用vite.config.js中配置的代理
+  baseURL: '/api', // 设置baseURL为/api，配合vite.config.js中的代理
   timeout: 10000 // 请求超时时间
 })
 
@@ -47,7 +47,7 @@ service.interceptors.response.use(
           message = '未授权，请重新登录'
           // 清除token并跳转登录页
           localStorage.removeItem('teacher-manager-token')
-          router.push(`/login?redirect=${router.currentRoute.value.fullPath}`)
+          router.push('/login')
           break
         case 403:
           message = '拒绝访问'

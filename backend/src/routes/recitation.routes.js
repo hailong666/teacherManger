@@ -24,16 +24,16 @@ router.get('/',
   recitationController.getRecitations
 );
 
-// 获取背诵打卡详情
-router.get('/:id', 
-  authMiddleware.verifyToken, 
-  recitationController.getRecitationById
-);
-
 // 获取背诵打卡统计信息
 router.get('/stats', 
   authMiddleware.verifyToken, 
   recitationController.getRecitationStats
+);
+
+// 获取背诵打卡详情
+router.get('/:id', 
+  authMiddleware.verifyToken, 
+  recitationController.getRecitationById
 );
 
 module.exports = router;

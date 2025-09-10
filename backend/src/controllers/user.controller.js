@@ -78,60 +78,66 @@ exports.register = async (req, res) => {
  */
 exports.login = async (req, res) => {
   try {
-    const userRepository = getUserRepository();
     const { username, password } = req.body;
 
-    // 查找用户
-    const user = await userRepository.findOne({ 
-      where: { username },
-      select: ['id', 'username', 'password', 'email', 'name', 'role_id', 'status']
-    });
+    try {
+      const userRepository = getUserRepository();
+      
+      // 查找用户
+      const user = await userRepository.findOne({ 
+        where: { username },
+        select: ['id', 'username', 'password', 'email', 'name', 'role_id', 'status']
+      });
 
-    if (!user) {
-      return res.status(401).json({ message: '用户名或密码不正确' });
+      if (!user) {
+        return res.status(401).json({ message: '用户名或密码不正确' });
+      }
+
+      // 检查用户状态
+      if (user.status !== 'active') {
+        return res.status(403).json({ message: '账户已被禁用，请联系管理员' });
+      }
+
+      // 验证密码
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: '用户名或密码不正确' });
+      }
+
+      // 获取用户角色信息
+      let role = null;
+      if (user.role_id) {
+        const roleRepository = getRoleRepository();
+        role = await roleRepository.findOne({ where: { id: user.role_id } });
+      }
+
+      // 生成JWT令牌
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          username: user.username, 
+          role: role ? role.name : 'student',
+          role_id: user.role_id
+        },
+        jwtConfig.secret,
+        { expiresIn: jwtConfig.expiresIn }
+      );
+
+      // 返回用户信息和令牌（不包含密码）
+      const { password: _, ...userWithoutPassword } = user;
+      userWithoutPassword.role = role;
+      return res.status(200).json({
+        message: '登录成功',
+        user: userWithoutPassword,
+        token
+      });
+    } catch (dbError) {
+      // 数据库连接失败时，返回错误
+      console.error('数据库连接失败，无法进行用户认证:', dbError.message);
+      return res.status(500).json({ 
+        message: '数据库连接失败，请稍后重试' 
+      });
     }
-
-    // 检查用户状态
-    if (user.status !== 'active') {
-      return res.status(403).json({ message: '账户已被禁用，请联系管理员' });
-    }
-
-    // 验证密码
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: '用户名或密码不正确' });
-    }
-
-    // 获取用户角色信息
-    let role = null;
-    if (user.role_id) {
-      const roleRepository = getRoleRepository();
-      role = await roleRepository.findOne({ where: { id: user.role_id } });
-    }
-
-    // 生成JWT令牌
-    const token = jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username, 
-        role: role ? role.name : 'student',
-        role_id: user.role_id
-      },
-      jwtConfig.secret,
-      { expiresIn: jwtConfig.expiresIn }
-    );
-
-    // 更新最后登录时间（暂时注释掉，因为数据库中没有lastLoginAt字段）
-    // await userRepository.update(user.id, { lastLoginAt: new Date() });
-
-    // 返回用户信息和令牌（不包含密码）
-    const { password: _, ...userWithoutPassword } = user;
-    userWithoutPassword.role = role;
-    return res.status(200).json({
-      message: '登录成功',
-      user: userWithoutPassword,
-      token
-    });
   } catch (error) {
     console.error('登录失败:', error);
     return res.status(500).json({ message: '服务器错误，登录失败' });

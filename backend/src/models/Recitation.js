@@ -11,8 +11,13 @@ module.exports = new EntitySchema({
     },
     content: {
       type: 'text',
+      nullable: true,
+      comment: '学生提交的背诵内容（可选）'
+    },
+    article_id: {
+      type: 'int',
       nullable: false,
-      comment: '背诵内容'
+      comment: '关联的课文ID'
     },
     student_id: {
       type: 'int',
@@ -83,7 +88,15 @@ module.exports = new EntitySchema({
       joinColumn: {
         name: 'gradedBy'
       },
-      nullable: true
+      onDelete: 'SET NULL'
+    },
+    article: {
+      type: 'many-to-one',
+      target: 'Article',
+      joinColumn: {
+        name: 'article_id'
+      },
+      onDelete: 'CASCADE'
     }
   },
   indices: [

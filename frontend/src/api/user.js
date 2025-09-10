@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 用户登录
 export function login(data) {
@@ -50,6 +50,9 @@ export function getAllUsers(params = {}) {
     params
   })
 }
+
+// 获取用户列表（别名）
+export const getUserList = getAllUsers
 
 // 创建用户
 export function createUser(data) {

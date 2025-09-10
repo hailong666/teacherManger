@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 获取背诵打卡列表
 export function getRecitationList(params) {

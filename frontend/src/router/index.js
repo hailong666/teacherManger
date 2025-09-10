@@ -88,6 +88,18 @@ const routes = [
         meta: { title: '角色管理', icon: 'setting', requiresAuth: true, roles: ['admin'] }
       },
       {
+        path: 'article-management',
+        name: 'ArticleManagement',
+        component: () => import('../views/admin/ArticleManagement.vue'),
+        meta: { title: '课文管理', icon: 'edit', requiresAuth: true, roles: ['admin'] }
+      },
+      {
+        path: 'article-stats',
+        name: 'ArticleStats',
+        component: () => import('../views/recitation/ArticleStats.vue'),
+        meta: { title: '课文统计', icon: 'data-analysis', requiresAuth: true, roles: ['teacher', 'admin'] }
+      },
+      {
         path: 'whiteboard-attendance',
         name: 'WhiteboardAttendance',
         component: () => import('../views/attendance/WhiteboardAttendance.vue'),

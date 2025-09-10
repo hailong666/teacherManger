@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 获取签到二维码
 export function getAttendanceQRCode(classId) {

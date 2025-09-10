@@ -22,9 +22,27 @@ exports.verifyToken = async (req, res, next) => {
     // 验证token
     const decoded = jwt.verify(token, jwtConfig.secret);
     
-    // 查询用户
-    const userRepository = getConnection().getRepository(User);
-    const user = await userRepository.findOne({ where: { id: decoded.id } });
+    let user = null;
+    let role = null;
+    
+    try {
+      // 尝试查询数据库中的用户
+      const userRepository = getConnection().getRepository(User);
+      user = await userRepository.findOne({ where: { id: decoded.id } });
+      
+      if (user && user.role_id) {
+        const Role = require('../models/Role');
+        const roleRepository = getConnection().getRepository(Role);
+        role = await roleRepository.findOne({ where: { id: user.role_id } });
+      }
+    } catch (dbError) {
+      // 数据库连接失败时，返回错误
+      console.error('数据库连接失败，无法验证用户:', dbError.message);
+      return res.status(500).json({
+        code: 500,
+        message: '数据库连接失败，请稍后重试'
+      });
+    }
     
     if (!user) {
       return res.status(401).json({
@@ -38,14 +56,6 @@ exports.verifyToken = async (req, res, next) => {
         code: 403,
         message: '用户已被禁用'
       });
-    }
-    
-    // 获取用户角色信息
-    let role = null;
-    if (user.role_id) {
-      const Role = require('../models/Role');
-      const roleRepository = getConnection().getRepository(Role);
-      role = await roleRepository.findOne({ where: { id: user.role_id } });
     }
     
     // 将用户信息和角色添加到请求对象
@@ -116,26 +126,35 @@ exports.checkPermission = (resource, action) => {
         });
       }
       
-      // 教师拥有所有权限
-      if (req.user.role === 'teacher') {
+      // 管理员和教师拥有所有权限
+      if (req.user.role === 'admin' || req.user.role === 'teacher' || req.user.role === '管理员' || req.user.role === '教师') {
         return next();
       }
       
-      const permissionRepository = getConnection().getRepository('Permission');
-      const permission = await permissionRepository.findOne({
-        where: {
-          role: req.user.role,
-          resource,
-          action
+      try {
+        const permissionRepository = getConnection().getRepository('Permission');
+        const permission = await permissionRepository.findOne({
+          where: {
+            role: req.user.role,
+            resource,
+            action
+          }
+        });
+        
+        if (permission) {
+          next();
+        } else {
+          return res.status(403).json({
+            code: 403,
+            message: '权限不足'
+          });
         }
-      });
-      
-      if (permission) {
-        next();
-      } else {
-        return res.status(403).json({
-          code: 403,
-          message: '权限不足'
+      } catch (dbError) {
+        // 数据库连接失败时，返回错误
+        console.error('数据库连接失败，无法检查权限:', dbError.message);
+        return res.status(500).json({
+          code: 500,
+          message: '数据库连接失败，请稍后重试'
         });
       }
     } catch (error) {

@@ -34,8 +34,9 @@ export const useUserStore = defineStore('user', {
         console.log('Login response:', response)
         
         // 根据实际API响应结构调整
-        const token = response.token || response.data?.token
-        const user = response.user || response.data?.user || response.data
+        // 由于响应拦截器已经返回了response.data，所以直接使用response
+        const token = response.token
+        const user = response.user
         
         if (!token) {
           throw new Error('登录响应中缺少token')

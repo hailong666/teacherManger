@@ -4,10 +4,10 @@ require('dotenv').config();
 
 // 数据库连接配置
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USERNAME || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'teacher_manager'
+  host: '123.249.87.129',
+  user: 'root',
+  password: 'jxj13140123',
+  database: 'teacher_manager'
 };
 
 // 获取数据库连接
@@ -172,7 +172,9 @@ exports.getClasses = async (req, res) => {
     });
   } catch (error) {
     console.error('获取班级列表失败:', error);
-    return res.status(500).json({ message: '服务器错误，获取班级列表失败' });
+    return res.status(500).json({
+      message: '获取班级列表失败，请稍后重试'
+    });
   } finally {
     if (connection) {
       await connection.end();

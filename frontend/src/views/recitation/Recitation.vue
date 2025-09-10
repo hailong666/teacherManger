@@ -68,6 +68,10 @@
               <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
             </el-select>
             <el-button @click="loadRecitations">刷新</el-button>
+            <el-button v-if="userRole === 'teacher' || userRole === 'admin'" type="success" @click="showTeacherSubmitDialog = true">
+              <el-icon><Plus /></el-icon>
+              代学生打卡
+            </el-button>
           </div>
         </div>
       </template>
@@ -75,6 +79,15 @@
       <el-table :data="recitations" v-loading="loading" style="width: 100%">
         <el-table-column prop="studentName" label="学生" width="120" v-if="userRole === 'teacher' || userRole === 'admin'" />
         <el-table-column prop="className" label="班级" width="120" />
+        <el-table-column label="课文" width="150">
+          <template #default="{ row }">
+            <div v-if="row.article">
+              <div style="font-weight: 500;">{{ row.article.title }}</div>
+              <el-tag size="small" style="margin-top: 4px;">{{ row.article.category }}</el-tag>
+            </div>
+            <span v-else>自由背诵</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="content" label="背诵内容" min-width="200" show-overflow-tooltip />
         <el-table-column prop="audioUrl" label="音频" width="100">
           <template #default="{ row }">
@@ -94,9 +107,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="提交时间" width="180" />
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="160">
           <template #default="{ row }">
             <el-button size="small" @click="viewRecitation(row)">查看</el-button>
+            <el-button v-if="row.article" size="small" type="info" @click="viewArticle(row.article)">课文</el-button>
             <el-button v-if="(userRole === 'teacher' || userRole === 'admin') && row.status === 'pending'" size="small" type="primary" @click="startGrading(row)">评分</el-button>
           </template>
         </el-table-column>
@@ -156,6 +170,44 @@
         <el-button type="primary" @click="handleSubmit" :loading="submitting">提交</el-button>
       </template>
     </el-dialog>
+
+    <!-- 教师代学生打卡对话框 -->
+    <el-dialog v-model="showTeacherSubmitDialog" title="代学生打卡" width="600px">
+      <el-form :model="teacherSubmitForm" :rules="teacherSubmitRules" ref="teacherSubmitFormRef" label-width="100px">
+        <el-form-item label="选择班级" prop="classId">
+          <el-select v-model="teacherSubmitForm.classId" placeholder="请选择班级" style="width: 100%;" @change="loadStudentsByClass">
+            <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择学生" prop="studentId">
+          <el-select v-model="teacherSubmitForm.studentId" placeholder="请选择学生" style="width: 100%;" :disabled="!teacherSubmitForm.classId">
+            <el-option v-for="student in classStudents" :key="student.id" :label="student.name" :value="student.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择课文" prop="articleId">
+          <el-select v-model="teacherSubmitForm.articleId" placeholder="请选择课文" style="width: 100%;" @change="onArticleChange">
+            <el-option v-for="article in articles" :key="article.id" :label="article.title" :value="article.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="selectedArticle" label="课文内容">
+          <div class="article-content">
+            <h4>{{ selectedArticle.title }}</h4>
+            <p class="article-text">{{ selectedArticle.content }}</p>
+            <div class="article-meta">
+              <el-tag>{{ selectedArticle.category }}</el-tag>
+              <el-tag type="warning">难度: {{ selectedArticle.difficulty }}</el-tag>
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="teacherSubmitForm.remark" type="textarea" :rows="3" placeholder="请输入备注（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showTeacherSubmitDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleTeacherSubmit" :loading="teacherSubmitting">确认打卡</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -171,6 +223,8 @@ import {
   getRecitationStats,
   getClasses
 } from '@/api/recitation'
+import { getArticleList } from '@/api/article'
+import { getUserList } from '@/api/user'
 
 const userStore = useUserStore()
 const userRole = computed(() => userStore.user?.role)
@@ -179,9 +233,13 @@ const userRole = computed(() => userStore.user?.role)
 const loading = ref(false)
 const grading = ref(false)
 const submitting = ref(false)
+const teacherSubmitting = ref(false)
 const recitations = ref([])
 const classes = ref([])
 const studentClasses = ref([])
+const articles = ref([])
+const classStudents = ref([])
+const selectedArticle = ref(null)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -192,6 +250,7 @@ const todaySubmitted = ref(false)
 // 对话框状态
 const showGradeDialog = ref(false)
 const showSubmitDialog = ref(false)
+const showTeacherSubmitDialog = ref(false)
 const currentRecitation = ref(null)
 
 // 表单数据
@@ -206,6 +265,13 @@ const submitForm = reactive({
   audioUrl: ''
 })
 
+const teacherSubmitForm = reactive({
+  classId: '',
+  studentId: '',
+  articleId: '',
+  remark: ''
+})
+
 // 表单验证规则
 const gradeRules = {
   score: [{ required: true, message: '请输入分数', trigger: 'blur' }]
@@ -216,12 +282,19 @@ const submitRules = {
   content: [{ required: true, message: '请输入背诵内容', trigger: 'blur' }]
 }
 
+const teacherSubmitRules = {
+  classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+  studentId: [{ required: true, message: '请选择学生', trigger: 'change' }],
+  articleId: [{ required: true, message: '请选择课文', trigger: 'change' }]
+}
+
 // 统计数据
 const recitationStats = ref({ total: 0, pending: 0, graded: 0, averageScore: 0 })
 
 // 表单引用
 const gradeFormRef = ref()
 const submitFormRef = ref()
+const teacherSubmitFormRef = ref()
 
 // 方法
 const loadRecitations = async () => {
@@ -334,6 +407,30 @@ const viewRecitation = (recitation) => {
   })
 }
 
+const viewArticle = (article) => {
+  // 查看课文详情
+  const content = `
+    <div style="text-align: left;">
+      <h3 style="margin-bottom: 15px; color: #333;">${article.title}</h3>
+      <div style="margin-bottom: 10px;">
+        <span style="background: #f0f2f5; padding: 4px 8px; border-radius: 4px; margin-right: 8px; font-size: 12px;">${article.category}</span>
+        <span style="background: #fff7e6; color: #fa8c16; padding: 4px 8px; border-radius: 4px; font-size: 12px;">难度: ${article.difficulty}</span>
+      </div>
+      <div style="line-height: 1.8; color: #555; white-space: pre-wrap; max-height: 400px; overflow-y: auto; border: 1px solid #e8e8e8; padding: 15px; border-radius: 6px; background: #fafafa;">${article.content}</div>
+    </div>
+  `
+  
+  ElMessageBox({
+    title: '课文详情',
+    message: content,
+    dangerouslyUseHTMLString: true,
+    confirmButtonText: '确定',
+    customStyle: {
+      width: '600px'
+    }
+  })
+}
+
 const resetGradeForm = () => {
   Object.assign(gradeForm, {
     score: null,
@@ -348,6 +445,82 @@ const resetSubmitForm = () => {
     content: '',
     audioUrl: ''
   })
+}
+
+const resetTeacherSubmitForm = () => {
+  Object.assign(teacherSubmitForm, {
+    classId: '',
+    studentId: '',
+    articleId: '',
+    remark: ''
+  })
+  classStudents.value = []
+  selectedArticle.value = null
+}
+
+const loadArticles = async () => {
+  try {
+    const response = await getArticleList()
+    articles.value = response.articles || []
+  } catch (error) {
+    console.error('加载课文列表失败:', error)
+    ElMessage.error('加载课文列表失败')
+  }
+}
+
+const loadStudentsByClass = async () => {
+  if (!teacherSubmitForm.classId) {
+    classStudents.value = []
+    return
+  }
+  
+  try {
+    const response = await getUserList({ 
+      role: 'student', 
+      classId: teacherSubmitForm.classId 
+    })
+    classStudents.value = response.users || []
+    teacherSubmitForm.studentId = '' // 重置学生选择
+  } catch (error) {
+    console.error('加载学生列表失败:', error)
+    ElMessage.error('加载学生列表失败')
+  }
+}
+
+const onArticleChange = () => {
+  if (teacherSubmitForm.articleId) {
+    selectedArticle.value = articles.value.find(article => article.id === teacherSubmitForm.articleId)
+  } else {
+    selectedArticle.value = null
+  }
+}
+
+const handleTeacherSubmit = async () => {
+  try {
+    await teacherSubmitFormRef.value.validate()
+    teacherSubmitting.value = true
+    
+    const submitData = {
+      classId: teacherSubmitForm.classId,
+      studentId: teacherSubmitForm.studentId,
+      articleId: teacherSubmitForm.articleId,
+      content: selectedArticle.value?.content || '',
+      remark: teacherSubmitForm.remark
+    }
+    
+    await submitRecitation(submitData)
+    ElMessage.success('代学生打卡成功')
+    
+    showTeacherSubmitDialog.value = false
+    resetTeacherSubmitForm()
+    loadRecitations()
+    loadStats()
+  } catch (error) {
+    console.error('代学生打卡失败:', error)
+    ElMessage.error('代学生打卡失败')
+  } finally {
+    teacherSubmitting.value = false
+  }
 }
 
 const playAudio = (audioUrl) => {
@@ -380,6 +553,7 @@ onMounted(() => {
   loadRecitations()
   loadClasses()
   loadStats()
+  loadArticles()
 })
 </script>
 
@@ -413,6 +587,36 @@ onMounted(() => {
   border-radius: 4px;
   margin-bottom: 15px;
   line-height: 1.6;
+}
+
+.article-content {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.article-content h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.article-text {
+  margin: 0 0 15px 0;
+  line-height: 1.8;
+  color: #555;
+  font-size: 14px;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.article-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 @media (max-width: 768px) {

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>课文管理系统前端功能测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 登录功能测试</h2>
+        <div>
+            <input type="text" id="username" placeholder="用户名" value="admin">
+            <input type="password" id="password" placeholder="密码" value="123456">
+            <button onclick="testLogin()">测试登录</button>
+        </div>
+        <div id="loginResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 课文API测试</h2>
+        <button onclick="testGetArticles()">获取课文列表</button>
+        <button onclick="testCreateArticle()">创建测试课文</button>
+        <div id="articleResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 前端页面访问测试</h2>
+        <button onclick="testPageAccess()">测试主要页面访问</button>
+        <div id="pageResult" class="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. 系统状态检查</h2>
+        <button onclick="checkSystemStatus()">检查系统状态</button>
+        <div id="statusResult" class="test-result"></div>
+    </div>
+
+    <script>
+        let authToken = null;
+        
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ 登录成功！<br>用户: ${data.user.username}<br>角色: ${data.user.role.display_name}<br>Token: ${data.token.substring(0, 20)}...`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ 登录失败: ${data.message || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ 登录请求失败: ${error.message}`;
+            }
+        }
+        
+        async function testGetArticles() {
+            const resultDiv = document.getElementById('articleResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = '❌ 请先登录获取Token';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/articles', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ 获取课文列表成功！<br>课文数量: ${data.data.length}<br>总数: ${data.total}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ 获取课文失败: ${data.message || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ 课文API请求失败: ${error.message}`;
+            }
+        }
+        
+        async function testCreateArticle() {
+            const resultDiv = document.getElementById('articleResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = '❌ 请先登录获取Token';
+                return;
+            }
+            
+            const testArticle = {
+                title: `测试课文_${Date.now()}`,
+                content: '这是一篇测试课文的内容',
+                category: '语文',
+                grade: '三年级',
+                difficulty: 'medium'
+            };
+            
+            try {
+                const response = await fetch('/api/articles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(testArticle)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ 创建课文成功！<br>课文ID: ${data.data.id}<br>标题: ${data.data.title}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ 创建课文失败: ${data.message || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ 创建课文请求失败: ${error.message}`;
+            }
+        }
+        
+        async function testPageAccess() {
+            const resultDiv = document.getElementById('pageResult');
+            const pages = [
+                { name: '主页', url: 'http://localhost:5173/' },
+                { name: '登录页', url: 'http://localhost:5173/login' }
+            ];
+            
+            let results = [];
+            
+            for (const page of pages) {
+                try {
+                    const response = await fetch(page.url);
+                    if (response.ok) {
+                        results.push(`✅ ${page.name}: 可访问`);
+                    } else {
+                        results.push(`❌ ${page.name}: HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${page.name}: ${error.message}`);
+                }
+            }
+            
+            resultDiv.className = 'test-result success';
+            resultDiv.innerHTML = results.join('<br>');
+        }
+        
+        async function checkSystemStatus() {
+            const resultDiv = document.getElementById('statusResult');
+            const checks = [];
+            
+            // 检查前端服务
+            try {
+                const frontendResponse = await fetch('http://localhost:5173/');
+                checks.push(`✅ 前端服务 (5173): ${frontendResponse.ok ? '正常' : 'HTTP ' + frontendResponse.status}`);
+            } catch (error) {
+                checks.push(`❌ 前端服务 (5173): 无法连接`);
+            }
+            
+            // 检查后端API
+            try {
+                const backendResponse = await fetch('/api/users/login', { method: 'POST' });
+                checks.push(`✅ 后端API (3002): ${backendResponse.status === 400 ? '正常' : 'HTTP ' + backendResponse.status}`);
+            } catch (error) {
+                checks.push(`❌ 后端API (3002): 无法连接`);
+            }
+            
+            resultDiv.className = 'test-result success';
+            resultDiv.innerHTML = checks.join('<br>');
+        }
+        
+        // 页面加载时自动检查系统状态
+        window.onload = function() {
+            checkSystemStatus();
+        };
+    </script>
+</body>
+</html>

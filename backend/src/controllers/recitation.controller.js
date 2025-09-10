@@ -4,10 +4,14 @@ require('dotenv').config();
 
 // 数据库连接配置
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USERNAME || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'teacher_manager'
+  host: '123.249.87.129',
+  port: 3306,
+  user: 'root',
+  password: 'jxj13140123',
+  database: 'teacher_manager',
+  connectTimeout: 60000,
+  acquireTimeout: 60000,
+  timeout: 60000
 };
 
 // 获取数据库连接

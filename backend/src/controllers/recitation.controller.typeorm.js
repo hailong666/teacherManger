@@ -1,6 +1,7 @@
 const Recitation = require('../models/Recitation');
 const { User } = require('../models/User');
 const { Class } = require('../models/Class');
+const Article = require('../models/Article');
 const { getConnection } = require('typeorm');
 const { formatDateTime } = require('../utils/helpers');
 
@@ -16,13 +17,17 @@ const getUserRepository = () => {
 const getClassRepository = () => {
   return getConnection().getRepository(Class);
 };
+// 获取Article仓库的辅助函数
+const getArticleRepository = () => {
+  return getConnection().getRepository(Article);
+};
 
 /**
  * 提交背诵打卡
  */
 exports.submitRecitation = async (req, res) => {
   try {
-    const { classId, content, audioUrl } = req.body;
+    const { classId, articleId, content, audioUrl } = req.body;
     const studentId = req.user.id;
 
     // 验证班级是否存在
@@ -33,6 +38,18 @@ exports.submitRecitation = async (req, res) => {
 
     if (!classEntity) {
       return res.status(404).json({ message: '班级不存在' });
+    }
+
+    // 验证课文是否存在（如果提供了articleId）
+    let article = null;
+    if (articleId) {
+      article = await getArticleRepository().findOne({
+        where: { id: articleId }
+      });
+
+      if (!article) {
+        return res.status(404).json({ message: '课文不存在' });
+      }
     }
 
     // 验证学生是否在班级中
@@ -64,7 +81,7 @@ exports.submitRecitation = async (req, res) => {
     }
 
     // 创建背诵打卡记录
-    const recitation = getRecitationRepository().create({
+    const recitationData = {
       student: { id: studentId },
       class: { id: classId },
       content,
@@ -72,7 +89,14 @@ exports.submitRecitation = async (req, res) => {
       status: 'pending', // 默认为待评分状态
       createdAt: new Date(),
       updatedAt: new Date()
-    });
+    };
+
+    // 如果提供了课文ID，则关联课文
+    if (articleId) {
+      recitationData.article = { id: articleId };
+    }
+
+    const recitation = getRecitationRepository().create(recitationData);
 
     await getRecitationRepository().save(recitation);
 
@@ -216,7 +240,7 @@ exports.getRecitations = async (req, res) => {
     // 查询背诵打卡记录
     const [recitations, total] = await getRecitationRepository().findAndCount({
       where: whereClause,
-      relations: ['student', 'class', 'gradedBy'],
+      relations: ['student', 'class', 'gradedBy', 'article'],
       skip,
       take: limit,
       order: { createdAt: 'DESC' }
@@ -239,6 +263,11 @@ exports.getRecitations = async (req, res) => {
       gradedBy: recitation.gradedBy ? {
         id: recitation.gradedBy.id,
         name: recitation.gradedBy.name
+      } : null,
+      article: recitation.article ? {
+        id: recitation.article.id,
+        title: recitation.article.title,
+        category: recitation.article.category
       } : null
     }));
 
@@ -269,7 +298,7 @@ exports.getRecitationById = async (req, res) => {
     // 查询背诵打卡记录
     const recitation = await getRecitationRepository().findOne({
       where: { id },
-      relations: ['student', 'class', 'class.teacher', 'gradedBy']
+      relations: ['student', 'class', 'class.teacher', 'gradedBy', 'article']
     });
 
     if (!recitation) {
@@ -306,6 +335,13 @@ exports.getRecitationById = async (req, res) => {
       gradedBy: recitation.gradedBy ? {
         id: recitation.gradedBy.id,
         name: recitation.gradedBy.name
+      } : null,
+      article: recitation.article ? {
+        id: recitation.article.id,
+        title: recitation.article.title,
+        content: recitation.article.content,
+        category: recitation.article.category,
+        difficulty: recitation.article.difficulty
       } : null
     };
 
