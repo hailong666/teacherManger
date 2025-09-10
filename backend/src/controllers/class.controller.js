@@ -5,7 +5,7 @@ require('dotenv').config();
 // 数据库连接配置
 const dbConfig = {
   host: '123.249.87.129',
-  user: 'root',
+  user: 'teacher_admin',
   password: 'jxj13140123',
   database: 'teacher_manager'
 };
@@ -105,42 +105,39 @@ exports.getClasses = async (req, res) => {
     
     // 根据用户角色过滤班级
     if (userRole === 'teacher') {
-      whereClause += ' AND c.teacher_id = ?';
-      params.push(userId);
+      whereClause += ` AND c.teacher_id = ${userId}`;
     } else if (userRole === 'student') {
-      whereClause += ' AND c.id IN (SELECT class_id FROM class_students WHERE student_id = ?)';
-      params.push(userId);
+      whereClause += ` AND c.id IN (SELECT class_id FROM class_students WHERE student_id = ${userId})`;
     }
     
     // 搜索条件
     if (search) {
-      whereClause += ' AND (c.name LIKE ? OR c.description LIKE ? OR u.name LIKE ?)';
-      const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      const searchTerm = search.replace(/'/g, "''"); // 转义单引号
+      whereClause += ` AND (c.name LIKE '%${searchTerm}%' OR c.description LIKE '%${searchTerm}%' OR u.name LIKE '%${searchTerm}%')`;
     }
     
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const offset = (pageNum - 1) * limitNum;
     
     // 查询总数
-    const [countRows] = await connection.execute(
+    const [countRows] = await connection.query(
       `SELECT COUNT(*) as total 
        FROM classes c 
        LEFT JOIN users u ON c.teacher_id = u.id 
-       WHERE ${whereClause}`,
-      params
+       WHERE ${whereClause}`
     );
     const total = countRows[0].total;
 
     // 查询班级列表
-    const [classRows] = await connection.execute(
+    const [classRows] = await connection.query(
       `SELECT c.*, u.name as teacher_name, u.username as teacher_username,
               (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) as student_count
        FROM classes c 
        LEFT JOIN users u ON c.teacher_id = u.id 
        WHERE ${whereClause} 
        ORDER BY c.created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${limitNum} OFFSET ${offset}`
     );
 
     // 格式化返回数据
@@ -165,9 +162,9 @@ exports.getClasses = async (req, res) => {
       classes: formattedClasses,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit)
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {

@@ -6,7 +6,7 @@ require('dotenv').config();
 const dbConfig = {
   host: '123.249.87.129',
   port: 3306,
-  user: 'root',
+  user: 'teacher_admin',
   password: 'jxj13140123',
   database: 'teacher_manager',
   connectTimeout: 60000,
@@ -174,14 +174,12 @@ exports.getRecitations = async (req, res) => {
 
     // 按班级筛选
     if (classId) {
-      whereClause += ' AND r.class_id = ?';
-      params.push(classId);
+      whereClause += ` AND r.class_id = ${parseInt(classId)}`;
 
       // 如果是教师，验证是否为该班级的教师
       if (userRole === 'teacher') {
-        const [classRows] = await connection.execute(
-          'SELECT teacher_id FROM classes WHERE id = ?',
-          [classId]
+        const [classRows] = await connection.query(
+          `SELECT teacher_id FROM classes WHERE id = ${parseInt(classId)}`
         );
 
         if (classRows.length === 0 || classRows[0].teacher_id !== userId) {
@@ -197,18 +195,15 @@ exports.getRecitations = async (req, res) => {
         return res.status(403).json({ message: '您只能查看自己的背诵打卡记录' });
       }
 
-      whereClause += ' AND r.student_id = ?';
-      params.push(studentId);
+      whereClause += ` AND r.student_id = ${parseInt(studentId)}`;
     } else if (userRole === 'student') {
       // 学生只能查看自己的背诵打卡记录
-      whereClause += ' AND r.student_id = ?';
-      params.push(userId);
+      whereClause += ` AND r.student_id = ${parseInt(userId)}`;
     }
 
     // 按状态筛选
     if (status) {
-      whereClause += ' AND r.status = ?';
-      params.push(status);
+      whereClause += ` AND r.status = '${status.replace(/'/g, "''")}'`;
     }
 
     // 按日期范围筛选
@@ -219,26 +214,24 @@ exports.getRecitations = async (req, res) => {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
-      whereClause += ' AND r.createdAt >= ? AND r.createdAt <= ?';
-      params.push(start, end);
+      whereClause += ` AND r.createdAt >= '${start.toISOString()}' AND r.createdAt <= '${end.toISOString()}'`;
     }
 
     // 计算分页
     const offset = (page - 1) * limit;
 
     // 查询总数
-    const [countRows] = await connection.execute(
+    const [countRows] = await connection.query(
       `SELECT COUNT(*) as total 
        FROM recitation r 
        JOIN users u ON r.student_id = u.id 
        JOIN classes c ON r.class_id = c.id 
-       WHERE ${whereClause}`,
-      params
+       WHERE ${whereClause}`
     );
     const total = countRows[0].total;
 
     // 查询背诵打卡记录
-    const [recitationRows] = await connection.execute(
+    const [recitationRows] = await connection.query(
       `SELECT r.*, u.name as student_name, c.name as class_name, 
               grader.name as graded_by_name
        FROM recitation r 
@@ -247,8 +240,7 @@ exports.getRecitations = async (req, res) => {
        LEFT JOIN users grader ON r.gradedBy = grader.id 
        WHERE ${whereClause} 
        ORDER BY r.createdAt DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`
     );
 
     // 格式化返回数据

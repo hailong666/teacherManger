@@ -38,4 +38,11 @@ router.post(
   randomController.createRandomCall
 );
 
+// 重置点名状态（仅限教师和管理员）
+router.post(
+  '/reset',
+  [verifyToken, checkRole(['teacher', 'admin'])],
+  randomController.resetCallStatus
+);
+
 module.exports = router;

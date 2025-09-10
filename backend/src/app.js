@@ -24,7 +24,7 @@ const userRoutes = require('./routes/user.routes');
 const roleRoutes = require('./routes/role.routes');
 const permissionRoutes = require('./routes/permission.routes');
 const classRoutes = require('./routes/class.routes');
-const attendanceRoutes = require('./routes/attendance.routes');
+
 const recitationRoutes = require('./routes/recitation.routes');
 const articleRoutes = require('./routes/article.routes');
 const randomRoutes = require('./routes/random.routes');
@@ -36,7 +36,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/classes', classRoutes);
-app.use('/api/attendance', attendanceRoutes);
+
 app.use('/api/recitation', recitationRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/random', randomRoutes);

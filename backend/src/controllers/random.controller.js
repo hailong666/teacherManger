@@ -395,3 +395,24 @@ exports.createRandomCall = async (req, res) => {
     return res.status(500).json({ message: '服务器错误，创建随机点名记录失败' });
   }
 };
+
+/**
+ * 重置点名状态
+ */
+exports.resetCallStatus = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    
+    // 删除当前教师的所有点名记录
+    const randomCallRepository = getRandomCallRepository();
+    const result = await randomCallRepository.delete({ teacher_id: teacherId });
+    
+    return res.status(200).json({
+      message: '点名状态重置成功',
+      deletedCount: result.affected || 0
+    });
+  } catch (error) {
+    console.error('重置点名状态失败:', error);
+    return res.status(500).json({ message: '服务器错误，重置点名状态失败' });
+  }
+};

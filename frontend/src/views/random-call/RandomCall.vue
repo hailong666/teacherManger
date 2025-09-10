@@ -76,6 +76,7 @@
               <el-option label="全部班级" value="" />
               <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
             </el-select>
+            <el-button type="warning" @click="handleResetCallStatus" :loading="resetting">重置点名状态</el-button>
             <el-button @click="loadCallHistory">刷新</el-button>
           </div>
         </div>
@@ -116,7 +117,8 @@ import {
   getRandomCallHistory, 
   createRandomCall,
   getClasses,
-  getStudentsByClass
+  getStudentsByClass,
+  resetCallStatus
 } from '@/api/randomCall'
 
 const userStore = useUserStore()
@@ -126,6 +128,7 @@ const userRole = computed(() => userStore.user?.role)
 const loading = ref(false)
 const saving = ref(false)
 const isRolling = ref(false)
+const resetting = ref(false)
 const classes = ref([])
 const callHistory = ref([])
 const calledStudents = ref([])
@@ -317,6 +320,35 @@ const viewCallDetail = (record) => {
     '点名详情',
     { confirmButtonText: '确定' }
   )
+}
+
+// 重置点名状态
+const handleResetCallStatus = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要重置所有点名状态吗？重置后所有学生都可以重新被点名。',
+      '确认重置',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    resetting.value = true
+    await resetCallStatus()
+    ElMessage.success('点名状态重置成功')
+    
+    // 重新加载历史记录
+    loadCallHistory()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('重置点名状态失败:', error)
+      ElMessage.error(`重置点名状态失败: ${error.response?.data?.message || error.message || '未知错误'}`)
+    }
+  } finally {
+    resetting.value = false
+  }
 }
 
 // 组件挂载时加载数据

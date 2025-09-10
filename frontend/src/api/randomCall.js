@@ -67,3 +67,11 @@ export const createRandomCall = (data) => {
     data
   })
 }
+
+// 重置点名状态
+export const resetCallStatus = () => {
+  return request({
+    url: '/random/reset',
+    method: 'post'
+  })
+}

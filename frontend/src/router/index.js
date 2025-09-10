@@ -22,12 +22,6 @@ const routes = [
         meta: { title: '学生签到', icon: 'calendar', requiresAuth: true, roles: ['teacher', 'admin'] }
       },
       {
-        path: 'classroom-attendance',
-        name: 'ClassroomAttendance',
-        component: () => import('../views/teacher/ClassroomAttendance.vue'),
-        meta: { title: '教室签到', icon: 'calendar', requiresAuth: true, roles: ['teacher', 'admin'] }
-      },
-      {
         path: 'student-attendance',
         name: 'StudentAttendance',
         component: () => import('../views/student/StudentAttendance.vue'),
