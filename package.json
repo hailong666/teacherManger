@@ -23,6 +23,7 @@
   "author": "Teacher Manager Team",
   "license": "MIT",
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "puppeteer": "^13.7.0"
   },
   "devDependencies": {

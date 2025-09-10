@@ -29,7 +29,7 @@
         
         <div v-else class="scan-section">
           <div class="scan-info">
-            <el-icon class="scan-icon"><QrCode /></el-icon>
+            <el-icon class="scan-icon"><Camera /></el-icon>
             <h4>请确认签到信息</h4>
             <p>会话ID: {{ sessionId }}</p>
           </div>
@@ -57,7 +57,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, SuccessFilled, CircleCloseFilled, QrCode } from '@element-plus/icons-vue'
+import { Loading, SuccessFilled, CircleCloseFilled, Camera } from '@element-plus/icons-vue'
 import { scanQRCodeAttendance } from '@/api/attendance'
 
 const route = useRoute()
