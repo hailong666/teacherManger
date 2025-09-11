@@ -47,17 +47,42 @@ exports.addPoints = async (req, res) => {
 
     // 验证学生是否存在
     const student = await getUserRepository().findOne({
-      where: { id: studentId, role: 'student' },
-      relations: ['classes']
+      where: { id: studentId }
     });
 
     if (!student) {
       return res.status(404).json({ message: '学生不存在' });
     }
+    
+    // 获取学生角色ID（假设学生角色ID为3，或者查询roles表获取）
+    const Role = require('../models/Role');
+    const getRoleRepository = () => {
+      return getConnection().getRepository(Role);
+    };
+    
+    const studentRole = await getRoleRepository().findOne({
+      where: { name: 'student' }
+    });
+    
+    if (!studentRole || student.role_id !== studentRole.id) {
+      return res.status(400).json({ message: '用户不是学生角色' });
+    }
 
-    // 验证学生是否属于该班级
-    const isStudentInClass = student.classes.some(cls => cls.id === classId);
-    if (!isStudentInClass) {
+    // 验证学生是否属于该班级（通过ClassStudent中间表）
+    const ClassStudent = require('../models/ClassStudent');
+    const getClassStudentRepository = () => {
+      return getConnection().getRepository(ClassStudent);
+    };
+    
+    const classStudent = await getClassStudentRepository().findOne({
+      where: { 
+        student: { id: studentId }, 
+        class: { id: classId },
+        status: 'active'
+      }
+    });
+    
+    if (!classStudent) {
       return res.status(400).json({ message: '该学生不属于此班级' });
     }
 
@@ -67,7 +92,7 @@ exports.addPoints = async (req, res) => {
       class: { id: classId },
       points,
       reason,
-      awardedBy: { id: teacherId },
+      teacher: { id: teacherId },
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -139,7 +164,7 @@ exports.getStudentPoints = async (req, res) => {
     // 查询积分记录
     const [pointsRecords, total] = await getPointsRepository().findAndCount({
       where: whereClause,
-      relations: ['student', 'class', 'awardedBy'],
+      relations: ['student', 'class', 'teacher'],
       skip,
       take: limit,
       order: { createdAt: 'DESC' }
@@ -155,8 +180,8 @@ exports.getStudentPoints = async (req, res) => {
       points: record.points,
       reason: record.reason,
       awardedBy: {
-        id: record.awardedBy.id,
-        name: record.awardedBy.name
+        id: record.teacher.id,
+        name: record.teacher.name
       },
       createdAt: formatDateTime(record.createdAt)
     }));
@@ -188,7 +213,7 @@ exports.getClassLeaderboard = async (req, res) => {
     // 验证班级是否存在
     const classEntity = await getClassRepository().findOne({
       where: { id: classId },
-      relations: ['teacher', 'students']
+      relations: ['teacher', 'classStudents', 'classStudents.student']
     });
 
     if (!classEntity) {
@@ -200,14 +225,14 @@ exports.getClassLeaderboard = async (req, res) => {
       return res.status(403).json({ message: '您不是该班级的教师，无权查看积分排行榜' });
     } else if (userRole === 'student') {
       // 检查学生是否在班级中
-      const isStudentInClass = classEntity.students.some(student => student.id === userId);
+      const isStudentInClass = classEntity.classStudents.some(cs => cs.student.id === userId);
       if (!isStudentInClass) {
         return res.status(403).json({ message: '您不是该班级的学生，无权查看积分排行榜' });
       }
     }
 
     // 获取班级所有学生
-    const students = classEntity.students;
+    const students = classEntity.classStudents.map(cs => cs.student);
 
     // 获取班级所有积分记录
     const pointsRecords = await getPointsRepository().find({
@@ -400,7 +425,7 @@ exports.deletePointsRecord = async (req, res) => {
     // 查找积分记录
     const pointsRecord = await getPointsRepository().findOne({
       where: { id },
-      relations: ['class', 'class.teacher', 'awardedBy']
+      relations: ['class', 'class.teacher', 'teacher']
     });
 
     if (!pointsRecord) {
@@ -411,7 +436,7 @@ exports.deletePointsRecord = async (req, res) => {
     if (userRole === 'teacher') {
       // 只有班级教师或积分授予者可以删除
       const isTeacher = pointsRecord.class.teacher.id === userId;
-      const isAwarder = pointsRecord.awardedBy.id === userId;
+      const isAwarder = pointsRecord.teacher.id === userId;
 
       if (!isTeacher && !isAwarder) {
         return res.status(403).json({ message: '您无权删除此积分记录' });

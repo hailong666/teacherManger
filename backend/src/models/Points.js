@@ -25,7 +25,7 @@ module.exports = new EntitySchema({
       type: 'text',
       nullable: true
     },
-    awardedBy: {
+    awarded_by: {
       type: 'int',
       nullable: false
     },
@@ -55,11 +55,11 @@ module.exports = new EntitySchema({
       },
       onDelete: 'CASCADE'
     },
-    awardedBy: {
+    teacher: {
       type: 'many-to-one',
       target: 'User',
       joinColumn: {
-        name: 'awardedBy'
+        name: 'awarded_by'
       },
       onDelete: 'CASCADE'
     }

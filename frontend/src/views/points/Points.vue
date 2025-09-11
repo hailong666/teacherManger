@@ -10,7 +10,7 @@
       <div class="add-points-section">
         <el-form :model="addForm" :rules="addRules" ref="addFormRef" label-width="100px" inline>
           <el-form-item label="选择班级" prop="classId">
-            <el-select v-model="addForm.classId" placeholder="请选择班级" @change="getStudentsForClass" :loading="loadingClasses">
+            <el-select v-model="addForm.classId" placeholder="请选择班级" @change="getStudentsForClass" :loading="loadingClasses" style="width: 200px;">
               <el-option
                 v-for="cls in classList"
                 :key="cls.id"
@@ -20,7 +20,7 @@
             </el-select>
           </el-form-item>
           <el-form-item label="选择学生" prop="studentId">
-            <el-select v-model="addForm.studentId" placeholder="请选择学生" :loading="loadingStudents">
+            <el-select v-model="addForm.studentId" placeholder="请选择学生" :loading="loadingStudents" style="width: 200px;">
               <el-option
                 v-for="student in studentList"
                 :key="student.id"
