@@ -488,15 +488,15 @@ const refreshAttendance = async () => {
     if (response.ok) {
       const data = await response.json()
       console.log('获取到的签到记录数据:', data)
-      // 后端返回的数据结构是 {attendances: [...], pagination: {...}}
-      const attendances = data.attendances || []
+      // 后端返回的数据结构是 {data: {attendances: [...], pagination: {...}}}
+      const attendances = data.data?.attendances || data.attendances || []
       attendanceRecords.value = attendances.map(item => ({
         id: item.id,
-        studentId: item.studentId,
-        studentName: item.studentName || item.student?.name,
-        attendanceTime: item.attendanceTime || item.class_time,
-        method: item.method,
-        status: 'present'
+        studentId: item.student_id || item.studentId,
+        studentName: item.student?.name || item.studentName,
+        attendanceTime: item.check_in_time || item.attendanceTime || item.created_at,
+        method: item.method || 'manual',
+        status: item.status || 'present'
       }))
     } else {
       const errorData = await response.json().catch(() => ({}))

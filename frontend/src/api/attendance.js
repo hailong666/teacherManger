@@ -3,7 +3,7 @@ import request from './request'
 // 获取签到二维码
 export const getAttendanceQRCode = (classId) => {
   return request({
-    url: '/api/attendance/qrcode',
+    url: '/attendance/qrcode',
     method: 'post',
     data: { classId }
   })
@@ -12,7 +12,7 @@ export const getAttendanceQRCode = (classId) => {
 // 获取签到记录列表
 export const getAttendanceList = (params) => {
   return request({
-    url: '/api/attendance/list',
+    url: '/attendance/list',
     method: 'get',
     params
   })
@@ -21,7 +21,7 @@ export const getAttendanceList = (params) => {
 // 更新签到状态
 export const updateAttendanceStatus = (id, data) => {
   return request({
-    url: `/api/attendance/${id}`,
+    url: `/attendance/${id}`,
     method: 'put',
     data
   })
@@ -30,7 +30,7 @@ export const updateAttendanceStatus = (id, data) => {
 // 创建签到记录
 export const createAttendance = (data) => {
   return request({
-    url: '/api/attendance',
+    url: '/attendance',
     method: 'post',
     data
   })
@@ -39,7 +39,7 @@ export const createAttendance = (data) => {
 // 删除签到记录
 export const deleteAttendance = (id) => {
   return request({
-    url: `/api/attendance/${id}`,
+    url: `/attendance/${id}`,
     method: 'delete'
   })
 }
@@ -47,7 +47,7 @@ export const deleteAttendance = (id) => {
 // 清除所有签到记录
 export const clearAllAttendance = () => {
   return request({
-    url: '/api/attendance/clear',
+    url: '/attendance/clear',
     method: 'delete'
   })
 }
@@ -55,7 +55,7 @@ export const clearAllAttendance = () => {
 // 获取签到统计信息
 export const getAttendanceStats = (params) => {
   return request({
-    url: '/api/attendance/stats',
+    url: '/attendance/stats',
     method: 'get',
     params
   })
@@ -64,7 +64,7 @@ export const getAttendanceStats = (params) => {
 // 扫描二维码签到
 export const scanQRCodeAttendance = (data) => {
   return request({
-    url: '/api/attendance/scan',
+    url: '/attendance/scan',
     method: 'post',
     data
   })

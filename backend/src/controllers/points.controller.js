@@ -1,6 +1,6 @@
-const { Points } = require('../models/Points');
-const { User } = require('../models/User');
-const { Class } = require('../models/Class');
+const Points = require('../models/Points');
+const User = require('../models/User');
+const Class = require('../models/Class');
 const { getConnection } = require('typeorm');
 const { formatDateTime } = require('../utils/helpers');
 

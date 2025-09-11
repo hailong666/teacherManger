@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import request from './request'
 
 // 获取班级列表
 export const getClasses = (params) => {

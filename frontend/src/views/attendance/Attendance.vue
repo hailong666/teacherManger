@@ -29,7 +29,7 @@
         <div v-if="qrcodeUrl" class="qrcode-display">
           <h4>签到二维码</h4>
           <div class="qrcode-image">
-            <img :src="qrcodeUrl" alt="签到二维码" />
+            <QrcodeVue :value="qrcodeUrl" :size="200" level="M" />
           </div>
           <p class="qrcode-info">有效时间：{{ qrcodeForm.validMinutes }}分钟</p>
           <p class="session-id">会话ID：{{ sessionId }}</p>
@@ -113,6 +113,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getAttendanceQRCode, getAttendanceList, updateAttendanceStatus } from '@/api/attendance.js'
 import { getClasses } from '@/api/class'
+import QrcodeVue from 'qrcode.vue'
 
 // 响应式数据
 const generating = ref(false)
@@ -156,9 +157,9 @@ const generateQRCode = async () => {
   generating.value = true
   try {
     const response = await getAttendanceQRCode(qrcodeForm.classId)
-    if (response && response.qrCode) {
-      qrcodeUrl.value = response.qrCode
-      sessionId.value = response.sessionId
+    if (response && response.success && response.data && response.data.qrCode) {
+      qrcodeUrl.value = response.data.qrCode
+      sessionId.value = response.data.sessionId || Date.now().toString()
       ElMessage.success('签到码生成成功')
     } else {
       ElMessage.error('生成签到码失败：服务器响应异常')
@@ -315,10 +316,14 @@ onMounted(() => {
   border-radius: 4px;
 }
 
-.qrcode-image img {
-  width: 200px;
-  height: 200px;
+.qrcode-image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
 }
+
+
 
 .qrcode-info {
   margin: 10px 0;
