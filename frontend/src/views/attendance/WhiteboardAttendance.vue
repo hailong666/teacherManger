@@ -103,7 +103,17 @@
         <template #header>
           <div class="list-header">
             <h3>已签到学生 ({{ attendedCount }}人)</h3>
-            <el-button @click="refreshAttendance" :loading="loading">刷新</el-button>
+            <div class="header-actions">
+              <el-button @click="refreshAttendance" :loading="loading">刷新</el-button>
+              <el-button 
+                @click="clearAllAttendance" 
+                type="danger" 
+                :disabled="attendedCount === 0"
+                v-if="userStore.userInfo?.role?.name === 'teacher'"
+              >
+                清除所有记录
+              </el-button>
+            </div>
           </div>
         </template>
         
@@ -532,6 +542,43 @@ const quickAttendance = async (student) => {
   } catch (error) {
     console.error('快速签到失败:', error)
     ElMessage.error('快速签到失败，请重试')
+  }
+}
+
+// 清除所有签到记录
+const clearAllAttendance = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要清除所有签到记录吗？此操作不可恢复！',
+      '警告',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await fetch('/api/attendance/clear/all', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('teacher-manager-token')}`
+      }
+    })
+    
+    const result = await response.json()
+    
+    if (response.ok) {
+      ElMessage.success('所有签到记录已清除')
+      await refreshAttendance()
+    } else {
+      ElMessage.error(result.message || '清除记录失败')
+    }
+    
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('清除签到记录失败:', error)
+      ElMessage.error('清除签到记录失败，请重试')
+    }
   }
 }
 

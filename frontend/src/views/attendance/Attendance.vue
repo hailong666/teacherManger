@@ -111,7 +111,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getAttendanceQRCode, getAttendanceList, updateAttendanceStatus } from '@/api/attendance'
+import { getAttendanceQRCode, getAttendanceList, updateAttendanceStatus } from '@/api/attendance.js'
 import { getClasses } from '@/api/class'
 
 // 响应式数据

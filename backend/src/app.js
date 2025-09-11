@@ -30,6 +30,7 @@ const articleRoutes = require('./routes/article.routes');
 const randomRoutes = require('./routes/random.routes');
 const pointsRoutes = require('./routes/points.routes');
 const homeworkRoutes = require('./routes/homework.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
 
 app.use('/api/auth', userRoutes);
 app.use('/api/users', userRoutes);
@@ -42,6 +43,7 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/random', randomRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/homework', homeworkRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // 错误处理中间件
 app.use((err, req, res, next) => {

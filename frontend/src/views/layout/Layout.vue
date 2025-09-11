@@ -25,10 +25,6 @@
             <el-icon><Calendar /></el-icon>
             <template #title>学生签到</template>
           </el-menu-item>
-          <el-menu-item index="/classroom-attendance">
-            <el-icon><Calendar /></el-icon>
-            <template #title>教室签到</template>
-          </el-menu-item>
           <el-menu-item index="/whiteboard-attendance">
             <el-icon><Edit /></el-icon>
             <template #title>希沃白板签到</template>

@@ -103,7 +103,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAttendanceList, getAttendanceStats } from '@/api/attendance'
+import { getAttendanceList, getAttendanceStats } from '@/api/attendance.js'
 
 const router = useRouter()
 

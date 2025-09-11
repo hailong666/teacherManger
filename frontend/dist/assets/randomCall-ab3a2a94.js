@@ -1,0 +1,1 @@
+import{B as s}from"./main-2e31a8b5.js";const r=()=>s({url:"/classes",method:"get"}),o=t=>s({url:`/random/students/${t}`,method:"get"}),a=t=>s({url:"/random/history",method:"get",params:t}),n=t=>s({url:"/random/call",method:"post",data:t}),l=()=>s({url:"/random/reset",method:"post"});export{a,o as b,n as c,r as g,l as r};

@@ -58,7 +58,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading, SuccessFilled, CircleCloseFilled, Camera } from '@element-plus/icons-vue'
-import { scanQRCodeAttendance } from '@/api/attendance'
+import { scanQRCodeAttendance } from '@/api/attendance.js'
 
 const route = useRoute()
 const router = useRouter()
