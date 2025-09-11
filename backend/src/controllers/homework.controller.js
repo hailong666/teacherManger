@@ -1,7 +1,7 @@
 const Homework = require('../models/Homework');
 const User = require('../models/User');
 const Class = require('../models/Class');
-const { getConnection } = require('typeorm');
+const { getConnection, In } = require('typeorm');
 const { formatDateTime, filterEmptyValues } = require('../utils/helpers');
 const fs = require('fs');
 const path = require('path');
@@ -606,5 +606,166 @@ exports.deleteHomework = async (req, res) => {
   } catch (error) {
     console.error('删除作业失败:', error);
     return res.status(500).json({ message: '服务器错误，删除作业失败' });
+  }
+};
+
+/**
+ * 获取学生作业列表
+ */
+exports.getStudentHomeworks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page = 1, limit = 10, status } = req.query;
+
+    // 获取学生所在的班级
+    const userRepository = getUserRepository();
+    const student = await userRepository.findOne({
+      where: { id: userId },
+      relations: ['classStudents', 'classStudents.class']
+    });
+
+    if (!student || !student.classStudents || student.classStudents.length === 0) {
+      return res.status(200).json({
+        homeworks: [],
+        total: 0,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          totalPages: 0
+        }
+      });
+    }
+
+    // 获取班级ID列表
+    const classIds = student.classStudents.map(cs => cs.class.id);
+
+    // 构建查询条件
+    const whereConditions = {
+      class: { id: In(classIds) },
+      status: 'published'
+    };
+
+    // 获取作业列表
+    const homeworkRepository = getHomeworkRepository();
+    const [homeworks, total] = await homeworkRepository.findAndCount({
+      where: whereConditions,
+      relations: ['class', 'teacher', 'submissions'],
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: parseInt(limit)
+    });
+
+    // 格式化返回数据
+    const formattedHomeworks = await Promise.all(homeworks.map(async (homework) => {
+      // 获取学生的提交情况
+      const submissionRepository = getConnection().getRepository('AssignmentSubmission');
+      const studentSubmission = await submissionRepository.findOne({
+        where: {
+          assignment_id: homework.id,
+          student_id: userId
+        }
+      });
+
+      // 判断作业状态
+      let submissionStatus = 'pending';
+      if (studentSubmission) {
+        submissionStatus = studentSubmission.status;
+      } else if (new Date() > homework.due_date) {
+        submissionStatus = 'expired';
+      }
+
+      // 根据状态过滤
+      if (status && submissionStatus !== status) {
+        return null;
+      }
+
+      return {
+        id: homework.id,
+        title: homework.title,
+        description: homework.description,
+        instructions: homework.instructions,
+        subject: homework.subject,
+        dueDate: homework.due_date,
+        maxScore: homework.max_score,
+        teacherName: homework.teacher?.real_name || homework.teacher?.name,
+        className: homework.class?.name,
+        submissionStatus,
+        score: studentSubmission?.score || null,
+        isLate: studentSubmission?.is_late || false,
+        submissionTime: studentSubmission?.submission_time || null,
+        feedback: studentSubmission?.feedback || null
+      };
+    }));
+
+    // 过滤掉null值（被状态过滤掉的）
+    const filteredHomeworks = formattedHomeworks.filter(hw => hw !== null);
+
+    return res.status(200).json({
+      homeworks: filteredHomeworks,
+      total: filteredHomeworks.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: filteredHomeworks.length,
+        totalPages: Math.ceil(filteredHomeworks.length / limit)
+      }
+    });
+  } catch (error) {
+    console.error('获取学生作业列表失败:', error);
+    return res.status(500).json({ message: '服务器错误，获取作业列表失败' });
+  }
+};
+
+/**
+ * 获取学生提交详情
+ */
+exports.getStudentSubmissionDetail = async (req, res) => {
+  try {
+    const { homeworkId } = req.params;
+    const userId = req.user.id;
+
+    // 获取提交详情
+    const submissionRepository = getConnection().getRepository('AssignmentSubmission');
+    const submission = await submissionRepository.findOne({
+      where: {
+        assignment_id: parseInt(homeworkId),
+        student_id: userId
+      }
+    });
+
+    if (!submission) {
+      return res.status(404).json({ message: '未找到提交记录' });
+    }
+
+    // 处理附件
+    let attachments = [];
+    if (submission.attachments) {
+      try {
+        attachments = JSON.parse(submission.attachments);
+      } catch (e) {
+        console.error('解析附件失败:', e);
+      }
+    }
+
+    const formattedSubmission = {
+      id: submission.id,
+      content: submission.content,
+      attachments,
+      submissionTime: submission.submission_time,
+      isLate: submission.is_late,
+      status: submission.status,
+      score: submission.score,
+      grade: submission.grade,
+      feedback: submission.feedback,
+      gradedAt: submission.graded_at
+    };
+
+    return res.status(200).json({
+      submission: formattedSubmission
+    });
+  } catch (error) {
+    console.error('获取提交详情失败:', error);
+    return res.status(500).json({ message: '服务器错误，获取提交详情失败' });
   }
 };

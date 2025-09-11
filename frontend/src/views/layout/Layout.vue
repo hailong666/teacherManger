@@ -37,12 +37,23 @@
             <el-icon><Calendar /></el-icon>
             <template #title>我的签到</template>
           </el-menu-item>
+          <el-menu-item index="/student-homework">
+            <el-icon><Document /></el-icon>
+            <template #title>作业提交</template>
+          </el-menu-item>
+          <el-menu-item index="/profile">
+            <el-icon><User /></el-icon>
+            <template #title>个人中心</template>
+          </el-menu-item>
         </template>
         
-        <el-menu-item index="/recitation">
-          <el-icon><Microphone /></el-icon>
-          <template #title>背诵打卡</template>
-        </el-menu-item>
+        <!-- 教师和学生共用菜单 -->
+        <template v-if="!userStore.hasRole('student')">
+          <el-menu-item index="/recitation">
+            <el-icon><Microphone /></el-icon>
+            <template #title>背诵打卡</template>
+          </el-menu-item>
+        </template>
         
         <!-- 教师和管理员专用菜单 -->
         <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
@@ -60,18 +71,21 @@
           </el-menu-item>
         </template>
         
-        <el-menu-item index="/points">
-          <el-icon><Star /></el-icon>
-          <template #title>班级积分</template>
-        </el-menu-item>
-        <el-menu-item index="/homework">
-          <el-icon><Document /></el-icon>
-          <template #title>电子作业</template>
-        </el-menu-item>
-        <el-menu-item index="/profile">
-          <el-icon><User /></el-icon>
-          <template #title>个人中心</template>
-        </el-menu-item>
+        <!-- 教师和管理员专用菜单 -->
+        <template v-if="userStore.hasRole('teacher') || userStore.hasRole('admin')">
+          <el-menu-item index="/points">
+            <el-icon><Star /></el-icon>
+            <template #title>班级积分</template>
+          </el-menu-item>
+          <el-menu-item index="/homework">
+            <el-icon><Document /></el-icon>
+            <template #title>电子作业</template>
+          </el-menu-item>
+          <el-menu-item index="/profile">
+            <el-icon><User /></el-icon>
+            <template #title>个人中心</template>
+          </el-menu-item>
+        </template>
         
         <!-- 管理员专用菜单 -->
         <template v-if="userStore.hasRole('admin')">

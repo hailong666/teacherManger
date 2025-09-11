@@ -49,7 +49,13 @@ const routes = [
         path: 'homework',
         name: 'Homework',
         component: () => import('../views/homework/Homework.vue'),
-        meta: { title: '电子作业', icon: 'document', requiresAuth: true }
+        meta: { title: '电子作业', icon: 'document', requiresAuth: true, roles: ['teacher', 'admin'] }
+      },
+      {
+        path: 'student-homework',
+        name: 'StudentHomework',
+        component: () => import('../views/homework/StudentHomework.vue'),
+        meta: { title: '作业提交', icon: 'document', requiresAuth: true, roles: ['student'] }
       },
       {
         path: 'profile',

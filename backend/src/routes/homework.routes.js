@@ -60,4 +60,11 @@ router.delete(
   homeworkController.deleteHomework
 );
 
+// 学生专用路由
+// 获取学生作业列表
+router.get('/student/list', [verifyToken, checkRole(['student'])], homeworkController.getStudentHomeworks);
+
+// 获取学生提交详情
+router.get('/student/:homeworkId/submission', [verifyToken, checkRole(['student'])], homeworkController.getStudentSubmissionDetail);
+
 module.exports = router;
